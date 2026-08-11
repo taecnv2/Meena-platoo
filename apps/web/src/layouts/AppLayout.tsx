@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { LogOut, Menu, X } from 'lucide-react'
+import { ChevronDown, LogOut, Menu, X } from 'lucide-react'
 import { BrandLogo } from '@/components/BrandLogo'
 import { useAuth } from '@/features/auth/AuthContext'
 import { NAV_GROUPS, NAV_STANDALONE } from '@/constants/nav'
@@ -9,10 +9,23 @@ import { cn } from '@/utils/cn'
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const { user } = useAuth()
   const permissions = new Set(user?.permissions ?? [])
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => new Set())
+
+  const toggleGroup = (label: string) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev)
+      if (next.has(label)) {
+        next.delete(label)
+      } else {
+        next.add(label)
+      }
+      return next
+    })
+  }
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     cn(
-      'flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+      'flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
       isActive ? 'bg-primary-light text-primary' : 'text-text-primary hover:bg-slate-100',
     )
 
@@ -23,22 +36,45 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       </div>
       {user?.isSuperScope || permissions.has(NAV_STANDALONE.permission) ? (
         <NavLink to={NAV_STANDALONE.path} className={linkClass} onClick={onNavigate}>
+          <NAV_STANDALONE.icon className="size-4 shrink-0" />
           {NAV_STANDALONE.label}
         </NavLink>
       ) : null}
-      {NAV_GROUPS.map((group) => {
+      {NAV_GROUPS.map((group, index) => {
         const items = group.items.filter((item) => user?.isSuperScope || permissions.has(item.permission))
         if (items.length === 0) {
           return null
         }
+        const isExpanded = !collapsedGroups.has(group.label)
         return (
-          <div key={group.label} className="mt-3">
-            <p className="px-3 py-1 text-xs font-semibold uppercase tracking-wide text-text-secondary">{group.label}</p>
-            {items.map((item) => (
-              <NavLink key={item.path} to={item.path} className={linkClass} onClick={onNavigate}>
-                {item.label}
-              </NavLink>
-            ))}
+          <div key={group.label} className={cn('mt-3', index > 0 && 'border-t border-border pt-3')}>
+            <button
+              type="button"
+              onClick={() => toggleGroup(group.label)}
+              aria-expanded={isExpanded}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-semibold text-text-primary hover:bg-slate-100"
+            >
+              <group.icon className="size-4 shrink-0 text-text-secondary" />
+              <span className="flex-1 text-left">{group.label}</span>
+              <ChevronDown
+                className={cn('size-4 shrink-0 text-text-secondary transition-transform', !isExpanded && '-rotate-90')}
+              />
+            </button>
+            <div
+              className="grid transition-[grid-template-rows] duration-200 ease-in-out"
+              style={{ gridTemplateRows: isExpanded ? '1fr' : '0fr' }}
+            >
+              <div className="overflow-hidden">
+                <div className="flex flex-col gap-1 pt-1">
+                  {items.map((item) => (
+                    <NavLink key={item.path} to={item.path} className={linkClass} onClick={onNavigate}>
+                      <item.icon className="size-4 shrink-0" />
+                      {item.label}
+                    </NavLink>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
         )
       })}
