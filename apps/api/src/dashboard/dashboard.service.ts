@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { buildDateRangeQuery } from '../common/utils/date-range.util';
 import {
   Ingredient,
   IngredientDocument,
@@ -29,8 +30,7 @@ export interface DashboardSummary {
     outOfStockCount: number;
   };
   requisition: {
-    requestsToday: number;
-    requestsThisMonth: number;
+    requestsInRange: number;
     pendingRequests: number;
     topRequestingZone: {
       zoneId: string;
@@ -60,40 +60,37 @@ export class DashboardService {
     private readonly stockCountModel: Model<StockCountDocument>,
   ) {}
 
-  async getOwnerSummary(): Promise<DashboardSummary> {
+  async getOwnerSummary(
+    dateFrom?: string,
+    dateTo?: string,
+  ): Promise<DashboardSummary> {
     const now = new Date();
-    const startOfDay = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate(),
-    );
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const defaultFrom = new Date(now.getFullYear(), now.getMonth(), 1);
+    const range = buildDateRangeQuery(dateFrom, dateTo) ?? {
+      $gte: defaultFrom,
+      $lte: now,
+    };
 
     const [
       inventory,
-      requestsToday,
-      requestsThisMonth,
+      requestsInRange,
       pendingRequests,
       topZone,
       pendingTransfers,
       stockCountStatus,
     ] = await Promise.all([
       this.getInventorySummary(),
-      this.requisitionModel.countDocuments({ createdAt: { $gte: startOfDay } }),
-      this.requisitionModel.countDocuments({
-        createdAt: { $gte: startOfMonth },
-      }),
+      this.requisitionModel.countDocuments({ createdAt: range }),
       this.requisitionModel.countDocuments({ status: 'PENDING' }),
-      this.getTopRequestingZone(startOfMonth),
+      this.getTopRequestingZone(range),
       this.transferModel.countDocuments({ status: 'PENDING' }),
-      this.getStockCountStatus(),
+      this.getStockCountStatus(range),
     ]);
 
     return {
       inventory,
       requisition: {
-        requestsToday,
-        requestsThisMonth,
+        requestsInRange,
         pendingRequests,
         topRequestingZone: topZone,
       },
@@ -163,15 +160,16 @@ export class DashboardService {
     };
   }
 
-  private async getTopRequestingZone(
-    since: Date,
-  ): Promise<{ zoneId: string; zoneName: string; count: number } | null> {
+  private async getTopRequestingZone(range: {
+    $gte?: Date;
+    $lte?: Date;
+  }): Promise<{ zoneId: string; zoneName: string; count: number } | null> {
     const [result] = await this.requisitionModel.aggregate<{
       zoneId: string;
       zoneName: string;
       count: number;
     }>([
-      { $match: { createdAt: { $gte: since } } },
+      { $match: { createdAt: range } },
       { $group: { _id: '$toZoneId', count: { $sum: 1 } } },
       { $sort: { count: -1 } },
       { $limit: 1 },
@@ -191,11 +189,17 @@ export class DashboardService {
     return result ?? null;
   }
 
-  private async getStockCountStatus(): Promise<Record<string, number>> {
+  private async getStockCountStatus(range: {
+    $gte?: Date;
+    $lte?: Date;
+  }): Promise<Record<string, number>> {
     const results = await this.stockCountModel.aggregate<{
       _id: string;
       count: number;
-    }>([{ $group: { _id: '$status', count: { $sum: 1 } } }]);
+    }>([
+      { $match: { createdAt: range } },
+      { $group: { _id: '$status', count: { $sum: 1 } } },
+    ]);
     return Object.fromEntries(results.map((r) => [r._id, r.count]));
   }
 }

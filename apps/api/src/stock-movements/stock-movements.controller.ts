@@ -21,6 +21,8 @@ export class StockMovementsController {
     @Query('ingredientId') ingredientId?: string,
     @Query('zoneId') zoneId?: string,
     @Query('movementType') movementType?: string,
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
   ): Promise<StockMovement[]> {
     const resolvedType = (MOVEMENT_TYPES as readonly string[]).includes(
       movementType ?? '',
@@ -32,6 +34,8 @@ export class StockMovementsController {
       zoneId,
       zoneIds: user.isSuperScope ? undefined : user.zoneIds,
       movementType: resolvedType,
+      dateFrom,
+      dateTo,
     });
   }
 }

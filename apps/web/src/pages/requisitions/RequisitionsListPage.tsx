@@ -8,20 +8,28 @@ import { Button } from '@/components/Button'
 import { Select } from '@/components/Select'
 import { Badge } from '@/components/Badge'
 import { DataTable, type DataTableColumn } from '@/components/DataTable'
+import { DateRangeFilter } from '@/components/DateRangeFilter'
 import { usePermission } from '@/hooks/usePermission'
 import { PERMISSIONS } from '@/constants/permissions'
 import { REQUISITION_STATUS_COLOR, REQUISITION_STATUS_LABEL } from '@/constants/labels'
 import { formatDateTime } from '@/utils/format'
+import type { DateRangeValue } from '@/utils/dateRange'
 import { REQUISITION_STATUSES, type Requisition, type RequisitionStatus } from '@/types/entities'
 
 export function RequisitionsListPage() {
   const canCreate = usePermission(PERMISSIONS.REQUISITION_CREATE)
   const [statusFilter, setStatusFilter] = useState<RequisitionStatus | ''>('')
+  const [dateRange, setDateRange] = useState<DateRangeValue>({ dateFrom: null, dateTo: null })
 
   const { data: zones } = useQuery({ queryKey: ['zones'], queryFn: zonesApi.list })
   const { data: requisitions, isLoading } = useQuery({
-    queryKey: ['requisitions', statusFilter],
-    queryFn: () => requisitionsApi.list(statusFilter || undefined),
+    queryKey: ['requisitions', statusFilter, dateRange.dateFrom, dateRange.dateTo],
+    queryFn: () =>
+      requisitionsApi.list({
+        status: statusFilter || undefined,
+        dateFrom: dateRange.dateFrom ?? undefined,
+        dateTo: dateRange.dateTo ?? undefined,
+      }),
   })
 
   const zoneMap = useMemo(() => new Map((zones ?? []).map((z) => [z._id, z.name])), [zones])
@@ -72,6 +80,8 @@ export function RequisitionsListPage() {
           onChange={(event) => setStatusFilter(event.target.value as RequisitionStatus | '')}
         />
       </div>
+
+      <DateRangeFilter value={dateRange} onChange={setDateRange} />
 
       <DataTable columns={columns} rows={requisitions ?? []} rowKey={(row) => row._id} isLoading={isLoading} emptyMessage="ยังไม่มีใบเบิกสินค้า" />
     </div>

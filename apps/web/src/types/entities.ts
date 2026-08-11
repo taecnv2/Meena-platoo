@@ -210,8 +210,7 @@ export interface DashboardSummary {
     outOfStockCount: number
   }
   requisition: {
-    requestsToday: number
-    requestsThisMonth: number
+    requestsInRange: number
     pendingRequests: number
     topRequestingZone: { zoneId: string; zoneName: string; count: number } | null
   }

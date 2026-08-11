@@ -12,13 +12,18 @@ export interface ApproveRequisitionPayload {
 }
 
 export interface FulfillRequisitionPayload {
-  fromZoneId: string
   items: Array<{ ingredientId: string; quantity: number }>
 }
 
+export interface RequisitionsFilter {
+  status?: RequisitionStatus
+  dateFrom?: string
+  dateTo?: string
+}
+
 export const requisitionsApi = {
-  list: (status?: RequisitionStatus) =>
-    axiosClient.get<Requisition[]>('/requisitions', { params: status ? { status } : undefined }).then((r) => r.data),
+  list: (filter?: RequisitionsFilter) =>
+    axiosClient.get<Requisition[]>('/requisitions', { params: filter }).then((r) => r.data),
   get: (id: string) => axiosClient.get<Requisition>(`/requisitions/${id}`).then((response) => response.data),
   create: (payload: CreateRequisitionPayload) =>
     axiosClient.post<Requisition>('/requisitions', payload).then((response) => response.data),

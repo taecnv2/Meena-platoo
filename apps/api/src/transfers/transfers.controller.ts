@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { RequirePermission } from '../common/decorators/require-permission.decorator';
 import { ZoneScope } from '../common/decorators/zone-scope.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -14,9 +14,15 @@ export class TransfersController {
 
   @RequirePermission(PERMISSION_CODES.TRANSFER_READ)
   @Get()
-  findAll(@CurrentUser() user: RequestUser): Promise<Transfer[]> {
+  findAll(
+    @CurrentUser() user: RequestUser,
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
+  ): Promise<Transfer[]> {
     return this.transfersService.findAll({
       zoneIds: user.isSuperScope ? undefined : user.zoneIds,
+      dateFrom,
+      dateTo,
     });
   }
 

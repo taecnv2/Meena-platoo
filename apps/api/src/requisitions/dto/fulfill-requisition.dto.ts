@@ -18,10 +18,8 @@ export class FulfillRequisitionItemDto {
   quantity!: number;
 }
 
+/** No fromZoneId -- fulfillment always draws from the requisition's own fromZoneId (the warehouse). */
 export class FulfillRequisitionDto {
-  @IsMongoId()
-  fromZoneId!: string;
-
   @IsArray()
   @ArrayMinSize(1)
   @ValidateNested({ each: true })

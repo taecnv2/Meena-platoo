@@ -12,6 +12,7 @@ import {
   StockMovement,
 } from '../stock-movements/schemas/stock-movement.schema';
 import { StockMovementsService } from '../stock-movements/stock-movements.service';
+import { ZonesService } from '../zones/zones.service';
 import { AdjustmentDto } from './dto/adjustment.dto';
 import { StockInDto } from './dto/stock-in.dto';
 import { StockOutDto } from './dto/stock-out.dto';
@@ -45,6 +46,7 @@ export class InventoryService {
     @InjectConnection() private readonly connection: Connection,
     private readonly stockMovementsService: StockMovementsService,
     private readonly ingredientsService: IngredientsService,
+    private readonly zonesService: ZonesService,
   ) {}
 
   findBalances(filter: BalanceFilter): Promise<ZoneStock[]> {
@@ -77,6 +79,10 @@ export class InventoryService {
   }
 
   async stockIn(dto: StockInDto, userId: string): Promise<StockMovement> {
+    const warehouseZoneId = await this.zonesService.getWarehouseZoneId();
+    if (dto.zoneId !== warehouseZoneId) {
+      throw new BadRequestException('รับสินค้าได้เฉพาะที่คลังสินค้าเท่านั้น');
+    }
     const ingredient = await this.ingredientsService.findByIdWithUnit(
       dto.ingredientId,
     );

@@ -6,8 +6,10 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { QueryFilter, Model, Types } from 'mongoose';
+import { buildDateRangeQuery } from '../common/utils/date-range.util';
 import { IngredientsService } from '../ingredients/ingredients.service';
 import { TransfersService } from '../transfers/transfers.service';
+import { ZonesService } from '../zones/zones.service';
 import { ApproveRequisitionDto } from './dto/approve-requisition.dto';
 import { CreateRequisitionDto } from './dto/create-requisition.dto';
 import { FulfillRequisitionDto } from './dto/fulfill-requisition.dto';
@@ -21,6 +23,8 @@ import {
 export interface FindRequisitionsFilter {
   zoneIds?: string[];
   status?: RequisitionStatus;
+  dateFrom?: string;
+  dateTo?: string;
   limit?: number;
 }
 
@@ -33,6 +37,7 @@ export class RequisitionsService {
     private readonly requisitionModel: Model<RequisitionDocument>,
     private readonly ingredientsService: IngredientsService,
     private readonly transfersService: TransfersService,
+    private readonly zonesService: ZonesService,
   ) {}
 
   findAll(filter: FindRequisitionsFilter): Promise<Requisition[]> {
@@ -45,6 +50,10 @@ export class RequisitionsService {
     }
     if (filter.status) {
       query.status = filter.status;
+    }
+    const createdAt = buildDateRangeQuery(filter.dateFrom, filter.dateTo);
+    if (createdAt) {
+      query.createdAt = createdAt;
     }
     return this.requisitionModel
       .find(query)
@@ -78,6 +87,10 @@ export class RequisitionsService {
     dto: CreateRequisitionDto,
     userId: string,
   ): Promise<Requisition> {
+    const warehouseZoneId = await this.zonesService.getWarehouseZoneId();
+    if (dto.fromZoneId !== warehouseZoneId) {
+      throw new BadRequestException('เบิกสินค้าได้เฉพาะจากคลังสินค้าเท่านั้น');
+    }
     const items = await Promise.all(
       dto.items.map(async (item) => {
         const ingredient = await this.ingredientsService.findByIdWithUnit(
@@ -201,7 +214,7 @@ export class RequisitionsService {
     }
 
     await this.transfersService.executeTransfer({
-      fromZoneId: dto.fromZoneId,
+      fromZoneId: requisition.fromZoneId.toString(),
       toZoneId: requisition.toZoneId.toString(),
       items: dto.items,
       requisitionId: id,

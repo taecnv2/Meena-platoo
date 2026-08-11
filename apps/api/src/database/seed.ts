@@ -36,6 +36,12 @@ const ZONE_SEEDS: Array<{
   type: ZoneType;
   description: string;
 }> = [
+  {
+    name: 'คลังสินค้า',
+    code: 'WAREHOUSE',
+    type: 'STORAGE',
+    description: 'คลังสินค้ากลาง',
+  },
   { name: 'Kitchen', code: 'KITCHEN', type: 'KITCHEN', description: 'ครัว' },
   {
     name: 'Front of House',
@@ -190,6 +196,7 @@ async function seedDemoData(
     ctx.configService.get('bcryptSaltRounds', { infer: true }),
   );
 
+  const warehouseZoneId = requireZoneId(ctx.zoneIdByCode, 'WAREHOUSE');
   const kitchenZoneId = requireZoneId(ctx.zoneIdByCode, 'KITCHEN');
   const fohZoneId = requireZoneId(ctx.zoneIdByCode, 'FOH');
   const coldRoomZoneId = requireZoneId(ctx.zoneIdByCode, 'COLD_ROOM');
@@ -200,14 +207,14 @@ async function seedDemoData(
       email: 'manager@meenaplatoo.local',
       name: 'Demo Manager',
       roleName: ROLE_NAMES.MANAGER,
-      zoneIds: [kitchenZoneId, fohZoneId, coldRoomZoneId],
+      zoneIds: [warehouseZoneId, kitchenZoneId, fohZoneId, coldRoomZoneId],
     },
     {
       username: 'inventory',
       email: 'inventory@meenaplatoo.local',
       name: 'Demo Inventory Manager',
       roleName: ROLE_NAMES.INVENTORY_MANAGER,
-      zoneIds: [kitchenZoneId, fohZoneId, coldRoomZoneId],
+      zoneIds: [warehouseZoneId, kitchenZoneId, fohZoneId, coldRoomZoneId],
     },
     {
       username: 'kitchen',

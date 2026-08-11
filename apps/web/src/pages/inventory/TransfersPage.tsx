@@ -14,12 +14,14 @@ import { Input } from '@/components/Input'
 import { Badge } from '@/components/Badge'
 import { Modal } from '@/components/Modal'
 import { DataTable, type DataTableColumn } from '@/components/DataTable'
+import { DateRangeFilter } from '@/components/DateRangeFilter'
 import { useToast } from '@/components/Toast'
 import { usePermission } from '@/hooks/usePermission'
 import { useAccessibleZoneIds } from '@/hooks/useZoneAccess'
 import { PERMISSIONS } from '@/constants/permissions'
 import { TRANSFER_STATUS_LABEL } from '@/constants/labels'
 import { formatDateTime, formatQuantity } from '@/utils/format'
+import type { DateRangeValue } from '@/utils/dateRange'
 import type { Transfer } from '@/types/entities'
 
 const formSchema = z.object({
@@ -36,8 +38,16 @@ export function TransfersPage() {
   const canCreate = usePermission(PERMISSIONS.TRANSFER_CREATE)
   const accessibleZoneIds = useAccessibleZoneIds()
   const [isCreating, setIsCreating] = useState(false)
+  const [dateRange, setDateRange] = useState<DateRangeValue>({ dateFrom: null, dateTo: null })
 
-  const { data: transfers, isLoading } = useQuery({ queryKey: ['transfers'], queryFn: transfersApi.list })
+  const { data: transfers, isLoading } = useQuery({
+    queryKey: ['transfers', dateRange.dateFrom, dateRange.dateTo],
+    queryFn: () =>
+      transfersApi.list({
+        dateFrom: dateRange.dateFrom ?? undefined,
+        dateTo: dateRange.dateTo ?? undefined,
+      }),
+  })
   const { data: zones } = useQuery({ queryKey: ['zones'], queryFn: zonesApi.list })
   const { data: ingredients } = useQuery({ queryKey: ['ingredients'], queryFn: ingredientsApi.list })
 
@@ -108,6 +118,8 @@ export function TransfersPage() {
           </Button>
         ) : null}
       </div>
+
+      <DateRangeFilter value={dateRange} onChange={setDateRange} />
 
       <DataTable columns={columns} rows={transfers ?? []} rowKey={(row) => row._id} isLoading={isLoading} emptyMessage="ยังไม่มีการโอนสินค้า" />
 

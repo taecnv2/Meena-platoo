@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useForm } from 'react-hook-form'
 import { useNavigate, useParams } from 'react-router-dom'
 import { requisitionsApi } from '@/api/endpoints/requisitions'
 import { ingredientsApi } from '@/api/endpoints/ingredients'
@@ -8,7 +7,6 @@ import { zonesApi } from '@/api/endpoints/zones'
 import { getErrorMessage } from '@/api/errors'
 import { Button } from '@/components/Button'
 import { Input } from '@/components/Input'
-import { Select } from '@/components/Select'
 import { Badge } from '@/components/Badge'
 import { Card, CardBody, CardHeader } from '@/components/Card'
 import { Modal } from '@/components/Modal'
@@ -16,21 +14,15 @@ import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { LoadingState } from '@/components/LoadingState'
 import { useToast } from '@/components/Toast'
 import { usePermission } from '@/hooks/usePermission'
-import { useAccessibleZoneIds } from '@/hooks/useZoneAccess'
 import { PERMISSIONS } from '@/constants/permissions'
 import { REQUISITION_STATUS_COLOR, REQUISITION_STATUS_LABEL } from '@/constants/labels'
 import { formatDateTime, formatQuantity } from '@/utils/format'
-
-interface FulfillFormValues {
-  fromZoneId: string
-}
 
 export function RequisitionDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const toast = useToast()
-  const accessibleZoneIds = useAccessibleZoneIds()
 
   const canApprove = usePermission(PERMISSIONS.REQUISITION_APPROVE)
   const canReject = usePermission(PERMISSIONS.REQUISITION_REJECT)
@@ -54,11 +46,6 @@ export function RequisitionDetailPage() {
 
   const ingredientMap = useMemo(() => new Map((ingredients ?? []).map((i) => [i._id, i.name])), [ingredients])
   const zoneMap = useMemo(() => new Map((zones ?? []).map((z) => [z._id, z.name])), [zones])
-  const accessibleZones = (zones ?? []).filter((z) => !accessibleZoneIds || accessibleZoneIds.includes(z._id))
-
-  const { register: registerFulfill, handleSubmit: handleFulfillSubmit, reset: resetFulfill } = useForm<FulfillFormValues>({
-    defaultValues: { fromZoneId: requisition?.fromZoneId ?? '' },
-  })
 
   const invalidate = () =>
     Promise.all([
@@ -112,12 +99,7 @@ export function RequisitionDetailPage() {
     }
   }
 
-  const openFulfill = () => {
-    resetFulfill({ fromZoneId: requisition?.fromZoneId ?? '' })
-    setIsFulfilling(true)
-  }
-
-  const onFulfillSubmit = async (values: FulfillFormValues) => {
+  const handleFulfill = async () => {
     if (!requisition) return
     const items = requisition.items
       .filter((item) => item.fulfilledQuantity < item.approvedQuantity)
@@ -128,7 +110,7 @@ export function RequisitionDetailPage() {
     }
     setIsMutating(true)
     try {
-      await requisitionsApi.fulfill(requisition._id, { fromZoneId: values.fromZoneId, items })
+      await requisitionsApi.fulfill(requisition._id, { items })
       toast.show('success', 'จ่ายสินค้าตามใบเบิกสำเร็จ')
       await invalidate()
       setIsFulfilling(false)
@@ -165,7 +147,7 @@ export function RequisitionDetailPage() {
             </Button>
           ) : null}
           {canFulfill && ['APPROVED', 'PARTIALLY_FULFILLED'].includes(requisition.status) ? (
-            <Button onClick={openFulfill}>จ่ายสินค้า</Button>
+            <Button onClick={() => setIsFulfilling(true)}>จ่ายสินค้า</Button>
           ) : null}
           {canCancel && ['DRAFT', 'PENDING', 'APPROVED'].includes(requisition.status) ? (
             <Button variant="secondary" onClick={() => setIsConfirmingCancel(true)}>
@@ -242,20 +224,15 @@ export function RequisitionDetailPage() {
         </div>
       </Modal>
 
-      <Modal isOpen={isFulfilling} onClose={() => setIsFulfilling(false)} title="จ่ายสินค้าตามใบเบิก">
-        <form onSubmit={(event) => void handleFulfillSubmit(onFulfillSubmit)(event)} className="flex flex-col gap-4">
-          <Select
-            label="จ่ายจาก Zone"
-            placeholder="เลือก Zone"
-            options={accessibleZones.map((z) => ({ value: z._id, label: z.name }))}
-            {...registerFulfill('fromZoneId', { required: true })}
-          />
-          <p className="text-sm text-text-secondary">ระบบจะจ่ายสินค้าให้ครบตามจำนวนที่อนุมัติซึ่งยังไม่ได้จ่าย</p>
-          <Button type="submit" isLoading={isMutating}>
-            ยืนยันการจ่ายสินค้า
-          </Button>
-        </form>
-      </Modal>
+      <ConfirmDialog
+        isOpen={isFulfilling}
+        title="จ่ายสินค้าตามใบเบิก"
+        message={`จ่ายสินค้าจากคลังสินค้าให้ครบตามจำนวนที่อนุมัติซึ่งยังไม่ได้จ่ายสำหรับใบเบิก ${requisition.code}?`}
+        confirmLabel="ยืนยันการจ่ายสินค้า"
+        isLoading={isMutating}
+        onConfirm={() => void handleFulfill()}
+        onCancel={() => setIsFulfilling(false)}
+      />
     </div>
   )
 }

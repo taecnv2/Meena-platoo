@@ -32,6 +32,8 @@ export class RequisitionsController {
   findAll(
     @CurrentUser() user: RequestUser,
     @Query('status') status?: string,
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
   ): Promise<Requisition[]> {
     const resolvedStatus = (REQUISITION_STATUSES as readonly string[]).includes(
       status ?? '',
@@ -41,6 +43,8 @@ export class RequisitionsController {
     return this.requisitionsService.findAll({
       zoneIds: user.isSuperScope ? undefined : user.zoneIds,
       status: resolvedStatus,
+      dateFrom,
+      dateTo,
     });
   }
 
@@ -91,7 +95,11 @@ export class RequisitionsController {
   }
 
   @RequirePermission(PERMISSION_CODES.REQUISITION_FULFILL)
-  @ZoneScope({ source: 'body', field: 'fromZoneId' })
+  @ZoneScope({
+    source: 'entity',
+    field: 'fromZoneId',
+    lookupService: RequisitionsService,
+  })
   @Patch(':id/fulfill')
   fulfill(
     @Param('id') id: string,

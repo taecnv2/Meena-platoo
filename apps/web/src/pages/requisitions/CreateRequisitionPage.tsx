@@ -1,3 +1,4 @@
+import { useEffect, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useFieldArray, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -14,6 +15,7 @@ import { Select } from '@/components/Select'
 import { Card, CardBody } from '@/components/Card'
 import { useToast } from '@/components/Toast'
 import { useAccessibleZoneIds } from '@/hooks/useZoneAccess'
+import { WAREHOUSE_ZONE_CODE } from '@/constants/zones'
 
 const formSchema = z.object({
   toZoneId: z.string().min(1, 'กรุณาเลือก Zone ของคุณ'),
@@ -38,17 +40,25 @@ export function CreateRequisitionPage() {
   const { data: ingredients } = useQuery({ queryKey: ['ingredients'], queryFn: ingredientsApi.list })
 
   const accessibleZones = (zones ?? []).filter((z) => !accessibleZoneIds || accessibleZoneIds.includes(z._id))
+  const warehouseZone = useMemo(() => (zones ?? []).find((z) => z.code === WAREHOUSE_ZONE_CODE), [zones])
 
   const {
     register,
     control,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: { toZoneId: '', fromZoneId: '', items: [{ ingredientId: '', requestedQuantity: 0 }] },
   })
   const { fields, append, remove } = useFieldArray({ control, name: 'items' })
+
+  useEffect(() => {
+    if (warehouseZone) {
+      setValue('fromZoneId', warehouseZone._id)
+    }
+  }, [warehouseZone, setValue])
 
   const onSubmit = async (values: FormValues) => {
     try {
@@ -64,7 +74,7 @@ export function CreateRequisitionPage() {
     <div className="flex flex-col gap-4">
       <div>
         <h1 className="text-xl font-semibold text-text-primary">สร้างใบเบิก</h1>
-        <p className="text-sm text-text-secondary">สร้างใบเบิกวัตถุดิบสำหรับ Zone ของคุณ</p>
+        <p className="text-sm text-text-secondary">สร้างใบเบิกวัตถุดิบจากคลังสินค้าสำหรับ Zone ของคุณ</p>
       </div>
 
       <Card className="max-w-2xl">
@@ -78,13 +88,12 @@ export function CreateRequisitionPage() {
                 error={errors.toZoneId?.message}
                 {...register('toZoneId')}
               />
-              <Select
-                label="ต้องการเบิกจาก Zone"
-                placeholder="เลือก Zone"
-                options={(zones ?? []).map((z) => ({ value: z._id, label: z.name }))}
-                error={errors.fromZoneId?.message}
-                {...register('fromZoneId')}
-              />
+              <div>
+                <input type="hidden" {...register('fromZoneId')} />
+                <p className="text-sm font-medium text-text-primary">เบิกจาก Zone</p>
+                <p className="mt-2 text-sm text-text-secondary">{warehouseZone?.name ?? 'คลังสินค้า'}</p>
+                {errors.fromZoneId?.message && <p className="mt-1 text-sm text-danger">{errors.fromZoneId.message}</p>}
+              </div>
             </div>
 
             <div className="flex flex-col gap-3">

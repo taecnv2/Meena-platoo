@@ -28,6 +28,8 @@ export interface StockMovementFilter {
   ingredientId?: string
   zoneId?: string
   movementType?: string
+  dateFrom?: string
+  dateTo?: string
 }
 
 export const inventoryApi = {

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { ClientSession, QueryFilter, Model } from 'mongoose';
+import { buildDateRangeQuery } from '../common/utils/date-range.util';
 import {
   MovementType,
   ReferenceType,
@@ -28,6 +29,8 @@ export interface FindMovementsFilter {
   zoneId?: string;
   zoneIds?: string[];
   movementType?: MovementType;
+  dateFrom?: string;
+  dateTo?: string;
   limit?: number;
 }
 
@@ -76,6 +79,10 @@ export class StockMovementsService {
     }
     if (filter.movementType) {
       query.movementType = filter.movementType;
+    }
+    const createdAt = buildDateRangeQuery(filter.dateFrom, filter.dateTo);
+    if (createdAt) {
+      query.createdAt = createdAt;
     }
     return this.movementModel
       .find(query)

@@ -6,8 +6,10 @@ import { zonesApi } from '@/api/endpoints/zones'
 import { Select } from '@/components/Select'
 import { Badge } from '@/components/Badge'
 import { DataTable, type DataTableColumn } from '@/components/DataTable'
+import { DateRangeFilter } from '@/components/DateRangeFilter'
 import { MOVEMENT_TYPE_LABEL } from '@/constants/labels'
 import { formatDateTime, formatQuantity } from '@/utils/format'
+import type { DateRangeValue } from '@/utils/dateRange'
 import { MOVEMENT_TYPES, type MovementType, type StockMovement } from '@/types/entities'
 
 const INCOMING_TYPES: MovementType[] = ['STOCK_IN', 'TRANSFER_IN', 'ADJUSTMENT_IN']
@@ -16,16 +18,19 @@ export function MovementsPage() {
   const [ingredientFilter, setIngredientFilter] = useState('')
   const [zoneFilter, setZoneFilter] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
+  const [dateRange, setDateRange] = useState<DateRangeValue>({ dateFrom: null, dateTo: null })
 
   const { data: ingredients } = useQuery({ queryKey: ['ingredients'], queryFn: ingredientsApi.list })
   const { data: zones } = useQuery({ queryKey: ['zones'], queryFn: zonesApi.list })
   const { data: movements, isLoading } = useQuery({
-    queryKey: ['stock-movements', ingredientFilter, zoneFilter, typeFilter],
+    queryKey: ['stock-movements', ingredientFilter, zoneFilter, typeFilter, dateRange.dateFrom, dateRange.dateTo],
     queryFn: () =>
       stockMovementsApi.list({
         ingredientId: ingredientFilter || undefined,
         zoneId: zoneFilter || undefined,
         movementType: typeFilter || undefined,
+        dateFrom: dateRange.dateFrom ?? undefined,
+        dateTo: dateRange.dateTo ?? undefined,
       }),
   })
 
@@ -79,6 +84,8 @@ export function MovementsPage() {
           onChange={(event) => setTypeFilter(event.target.value)}
         />
       </div>
+
+      <DateRangeFilter value={dateRange} onChange={setDateRange} />
 
       <DataTable columns={columns} rows={movements ?? []} rowKey={(row) => row._id} isLoading={isLoading} emptyMessage="ไม่มีประวัติการเคลื่อนไหว" />
     </div>

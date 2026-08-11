@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { ClientSession, QueryFilter, Model } from 'mongoose';
+import { buildDateRangeQuery } from '../common/utils/date-range.util';
 import { IngredientsService } from '../ingredients/ingredients.service';
 import { InventoryService } from '../inventory/inventory.service';
 import { CreateTransferDto } from './dto/create-transfer.dto';
@@ -16,6 +17,8 @@ export interface ExecuteTransferInput {
 
 export interface FindTransfersFilter {
   zoneIds?: string[];
+  dateFrom?: string;
+  dateTo?: string;
   limit?: number;
 }
 
@@ -35,6 +38,10 @@ export class TransfersService {
         { fromZoneId: { $in: filter.zoneIds } },
         { toZoneId: { $in: filter.zoneIds } },
       ];
+    }
+    const createdAt = buildDateRangeQuery(filter.dateFrom, filter.dateTo);
+    if (createdAt) {
+      query.createdAt = createdAt;
     }
     return this.transferModel
       .find(query)
