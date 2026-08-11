@@ -1,0 +1,21 @@
+import { Module } from '@nestjs/common';
+import { MongooseModule } from '@nestjs/mongoose';
+import { IngredientsModule } from '../ingredients/ingredients.module';
+import { InventoryModule } from '../inventory/inventory.module';
+import { Transfer, TransferSchema } from './schemas/transfer.schema';
+import { TransfersController } from './transfers.controller';
+import { TransfersService } from './transfers.service';
+
+@Module({
+  imports: [
+    MongooseModule.forFeature([
+      { name: Transfer.name, schema: TransferSchema },
+    ]),
+    IngredientsModule,
+    InventoryModule,
+  ],
+  controllers: [TransfersController],
+  providers: [TransfersService],
+  exports: [TransfersService],
+})
+export class TransfersModule {}
