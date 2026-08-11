@@ -65,7 +65,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
               style={{ gridTemplateRows: isExpanded ? '1fr' : '0fr' }}
             >
               <div className="overflow-hidden">
-                <div className="flex flex-col gap-1 py-1 pl-3">
+                <div className="flex flex-col gap-1 py-1 pl-5">
                   {items.map((item) => (
                     <NavLink key={item.path} to={item.path} className={linkClass} onClick={onNavigate}>
                       <item.icon className="size-4 shrink-0" />
