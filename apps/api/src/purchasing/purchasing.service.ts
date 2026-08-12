@@ -11,6 +11,7 @@ import { IngredientsService } from '../ingredients/ingredients.service';
 import { InventoryService } from '../inventory/inventory.service';
 import { ZonesService } from '../zones/zones.service';
 import { CreatePurchaseOrderDto } from './dto/create-purchase-order.dto';
+import { ReceivePurchaseOrderDto } from './dto/receive-purchase-order.dto';
 import { RejectPurchaseOrderDto } from './dto/reject-purchase-order.dto';
 import {
   PurchaseOrder,
@@ -156,6 +157,92 @@ export class PurchasingService {
     }
     purchaseOrder.status = 'CANCELLED';
     purchaseOrder.cancelledBy = new Types.ObjectId(userId);
+    await purchaseOrder.save();
+    return purchaseOrder.toObject();
+  }
+
+  /**
+   * Increments happen inside one InventoryService transaction; the PO's own receivedQuantity/
+   * status update happens in a separate save() afterwards -- same two-step pattern as
+   * RequisitionsService.fulfill(), which keeps the transaction callback free of state mutated
+   * via closure (a session.withTransaction retry would otherwise double-apply that mutation).
+   */
+  async receive(
+    id: string,
+    dto: ReceivePurchaseOrderDto,
+    userId: string,
+  ): Promise<PurchaseOrder> {
+    const purchaseOrder = await this.getMutableOrThrow(id);
+    if (!['APPROVED', 'PARTIALLY_RECEIVED'].includes(purchaseOrder.status)) {
+      throw new BadRequestException(
+        'ใบสั่งซื้อนี้ไม่อยู่ในสถานะที่สามารถรับสินค้าได้',
+      );
+    }
+
+    const receivedItems: Array<{
+      ingredientId: string;
+      quantity: number;
+      unit: string;
+      unitCost: number;
+    }> = [];
+    for (const receiveItem of dto.items) {
+      const item = purchaseOrder.items.find(
+        (i) => i.ingredientId.toString() === receiveItem.ingredientId,
+      );
+      if (!item) {
+        throw new BadRequestException('พบวัตถุดิบที่ไม่อยู่ในใบสั่งซื้อนี้');
+      }
+      const remaining = item.orderedQuantity - item.receivedQuantity;
+      const quantity = receiveItem.quantity ?? remaining;
+      if (quantity <= 0 || quantity > remaining) {
+        throw new BadRequestException(
+          `จำนวนที่รับต้องมากกว่า 0 และไม่เกินจำนวนที่เหลือของรายการนี้ (เหลือ ${remaining})`,
+        );
+      }
+      receivedItems.push({
+        ingredientId: item.ingredientId.toString(),
+        quantity,
+        unit: item.unit,
+        unitCost: item.unitCost,
+      });
+    }
+
+    const warehouseZoneId = await this.zonesService.getWarehouseZoneId();
+    await this.inventoryService.withTransaction(async (session) => {
+      for (const item of receivedItems) {
+        await this.inventoryService.increment(
+          {
+            ingredientId: item.ingredientId,
+            zoneId: warehouseZoneId,
+            quantity: item.quantity,
+            unit: item.unit,
+            movementType: 'STOCK_IN',
+            referenceType: 'PURCHASE_ORDER',
+            referenceId: id,
+            unitCost: item.unitCost,
+            performedBy: userId,
+          },
+          session,
+        );
+      }
+    });
+
+    receivedItems.forEach((receivedItem) => {
+      const item = purchaseOrder.items.find(
+        (i) => i.ingredientId.toString() === receivedItem.ingredientId,
+      );
+      if (item) {
+        item.receivedQuantity += receivedItem.quantity;
+      }
+    });
+
+    const allReceived = purchaseOrder.items.every(
+      (item) => item.receivedQuantity >= item.orderedQuantity,
+    );
+    purchaseOrder.status = allReceived ? 'RECEIVED' : 'PARTIALLY_RECEIVED';
+    if (allReceived) {
+      purchaseOrder.completedAt = new Date();
+    }
     await purchaseOrder.save();
     return purchaseOrder.toObject();
   }

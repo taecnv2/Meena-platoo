@@ -202,4 +202,89 @@ describe('PurchasingService', () => {
       expect(doc.cancelledBy).toEqual(new Types.ObjectId(userId));
     });
   });
+
+  describe('receive', () => {
+    it('rejects receive when the PO is not APPROVED or PARTIALLY_RECEIVED', async () => {
+      const doc: Record<string, unknown> = {
+        status: 'PENDING',
+        items: [],
+        save: jest.fn(),
+      };
+      doc.toObject = jest.fn(() => doc);
+      purchaseOrderModel.findById.mockResolvedValue(doc);
+
+      await expect(
+        service.receive('po-1', { items: [] }, userId),
+      ).rejects.toThrow('ใบสั่งซื้อนี้ไม่อยู่ในสถานะที่สามารถรับสินค้าได้');
+    });
+
+    it('accumulates receivedQuantity across two partial receives and reaches RECEIVED on the second', async () => {
+      const doc: Record<string, unknown> = {
+        status: 'APPROVED',
+        items: [
+          {
+            ingredientId,
+            orderedQuantity: 10,
+            receivedQuantity: 0,
+            unit: 'kg',
+            unitCost: 42,
+          },
+        ],
+        save: jest.fn().mockResolvedValue(undefined),
+      };
+      doc.toObject = jest.fn(() => ({ status: doc.status, items: doc.items }));
+      purchaseOrderModel.findById.mockResolvedValue(doc);
+
+      await service.receive(
+        'po-1',
+        { items: [{ ingredientId, quantity: 6 }] },
+        userId,
+      );
+      const items = doc.items as Array<{ receivedQuantity: number }>;
+      expect(items[0].receivedQuantity).toBe(6);
+      expect(doc.status).toBe('PARTIALLY_RECEIVED');
+
+      await service.receive('po-1', { items: [{ ingredientId }] }, userId);
+      expect(items[0].receivedQuantity).toBe(10);
+      expect(doc.status).toBe('RECEIVED');
+      expect(inventoryService.increment).toHaveBeenCalledTimes(2);
+      expect(inventoryService.increment).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          ingredientId,
+          zoneId: warehouseZoneId,
+          quantity: 4,
+          movementType: 'STOCK_IN',
+          referenceType: 'PURCHASE_ORDER',
+          referenceId: 'po-1',
+        }),
+        expect.anything(),
+      );
+    });
+
+    it('rejects a receive quantity exceeding the remaining amount', async () => {
+      const doc: Record<string, unknown> = {
+        status: 'APPROVED',
+        items: [
+          {
+            ingredientId,
+            orderedQuantity: 10,
+            receivedQuantity: 8,
+            unit: 'kg',
+            unitCost: 42,
+          },
+        ],
+        save: jest.fn(),
+      };
+      doc.toObject = jest.fn(() => doc);
+      purchaseOrderModel.findById.mockResolvedValue(doc);
+
+      await expect(
+        service.receive(
+          'po-1',
+          { items: [{ ingredientId, quantity: 5 }] },
+          userId,
+        ),
+      ).rejects.toThrow(/เหลือ 2/);
+    });
+  });
 });
