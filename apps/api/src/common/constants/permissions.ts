@@ -338,7 +338,8 @@ export const PERMISSION_REGISTRY: PermissionRegistryEntry[] = [
     code: PERMISSION_CODES.PURCHASING_RECEIVE,
     name: 'รับสินค้าตามใบสั่งซื้อ',
     module: 'PURCHASING',
-    description: 'Allows user to receive goods against an approved purchase order',
+    description:
+      'Allows user to receive goods against an approved purchase order',
   },
 
   {

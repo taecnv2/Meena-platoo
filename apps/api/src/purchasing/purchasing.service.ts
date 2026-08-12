@@ -247,9 +247,7 @@ export class PurchasingService {
     return purchaseOrder.toObject();
   }
 
-  private async getMutableOrThrow(
-    id: string,
-  ): Promise<PurchaseOrderDocument> {
+  private async getMutableOrThrow(id: string): Promise<PurchaseOrderDocument> {
     const purchaseOrder = await this.purchaseOrderModel.findById(id);
     if (!purchaseOrder) {
       throw new NotFoundException('ไม่พบใบสั่งซื้อนี้');

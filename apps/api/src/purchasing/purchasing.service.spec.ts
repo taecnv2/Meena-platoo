@@ -151,7 +151,11 @@ describe('PurchasingService', () => {
         mutableDoc({ status: 'APPROVED' }),
       );
       await expect(
-        service.reject('po-1', { rejectionReason: 'สินค้าราคาสูงเกินไป' }, userId),
+        service.reject(
+          'po-1',
+          { rejectionReason: 'สินค้าราคาสูงเกินไป' },
+          userId,
+        ),
       ).rejects.toThrow('ใบสั่งซื้อนี้ไม่อยู่ในสถานะรออนุมัติ');
     });
 

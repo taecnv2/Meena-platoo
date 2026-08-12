@@ -56,7 +56,12 @@ export class PurchaseOrder {
   })
   supplierId!: Types.ObjectId;
 
-  @Prop({ type: String, enum: PURCHASE_ORDER_STATUSES, default: 'DRAFT', index: true })
+  @Prop({
+    type: String,
+    enum: PURCHASE_ORDER_STATUSES,
+    default: 'DRAFT',
+    index: true,
+  })
   status!: PurchaseOrderStatus;
 
   @Prop({ type: [PurchaseOrderItemSchema], required: true })
