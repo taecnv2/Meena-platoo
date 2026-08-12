@@ -41,6 +41,11 @@ export const PERMISSIONS = {
   STOCK_COUNT_CREATE: 'stockCount.create',
   STOCK_COUNT_APPROVE: 'stockCount.approve',
 
+  PURCHASING_READ: 'purchasing.read',
+  PURCHASING_CREATE: 'purchasing.create',
+  PURCHASING_APPROVE: 'purchasing.approve',
+  PURCHASING_RECEIVE: 'purchasing.receive',
+
   USERS_READ: 'users.read',
   USERS_CREATE: 'users.create',
   USERS_UPDATE: 'users.update',

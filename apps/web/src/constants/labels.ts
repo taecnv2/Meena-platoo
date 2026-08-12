@@ -1,4 +1,12 @@
-import type { MovementType, RequisitionStatus, StockCountStatus, TransferStatus, ZoneType, UnitType } from '@/types/entities'
+import type {
+  MovementType,
+  PurchaseOrderStatus,
+  RequisitionStatus,
+  StockCountStatus,
+  TransferStatus,
+  ZoneType,
+  UnitType,
+} from '@/types/entities'
 
 export const REQUISITION_STATUS_LABEL: Record<RequisitionStatus, string> = {
   DRAFT: 'ร่าง',
@@ -16,6 +24,26 @@ export const REQUISITION_STATUS_COLOR: Record<RequisitionStatus, 'success' | 'wa
   APPROVED: 'info',
   PARTIALLY_FULFILLED: 'warning',
   FULFILLED: 'success',
+  REJECTED: 'danger',
+  CANCELLED: 'gray',
+}
+
+export const PURCHASE_ORDER_STATUS_LABEL: Record<PurchaseOrderStatus, string> = {
+  DRAFT: 'ร่าง',
+  PENDING: 'รออนุมัติ',
+  APPROVED: 'อนุมัติแล้ว',
+  PARTIALLY_RECEIVED: 'รับสินค้าบางส่วน',
+  RECEIVED: 'รับสินค้าครบแล้ว',
+  REJECTED: 'ปฏิเสธ',
+  CANCELLED: 'ยกเลิก',
+}
+
+export const PURCHASE_ORDER_STATUS_COLOR: Record<PurchaseOrderStatus, 'success' | 'warning' | 'danger' | 'info' | 'gray'> = {
+  DRAFT: 'gray',
+  PENDING: 'warning',
+  APPROVED: 'info',
+  PARTIALLY_RECEIVED: 'warning',
+  RECEIVED: 'success',
   REJECTED: 'danger',
   CANCELLED: 'gray',
 }

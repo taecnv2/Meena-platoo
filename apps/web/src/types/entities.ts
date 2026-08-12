@@ -220,3 +220,40 @@ export interface DashboardSummary {
     stockCountStatus: Record<string, number>
   }
 }
+
+export const PURCHASE_ORDER_STATUSES = [
+  'DRAFT',
+  'PENDING',
+  'APPROVED',
+  'PARTIALLY_RECEIVED',
+  'RECEIVED',
+  'REJECTED',
+  'CANCELLED',
+] as const
+export type PurchaseOrderStatus = (typeof PURCHASE_ORDER_STATUSES)[number]
+
+export interface PurchaseOrderItem {
+  ingredientId: string
+  orderedQuantity: number
+  receivedQuantity: number
+  unit: string
+  unitCost: number
+}
+
+export interface PurchaseOrder {
+  _id: string
+  code: string
+  supplierId: string
+  status: PurchaseOrderStatus
+  items: PurchaseOrderItem[]
+  deliveryZoneId: string
+  createdBy: string
+  approvedBy: string | null
+  rejectedBy: string | null
+  rejectionReason: string | null
+  cancelledBy: string | null
+  approvedAt: string | null
+  completedAt: string | null
+  remark: string | null
+  createdAt: string
+}
