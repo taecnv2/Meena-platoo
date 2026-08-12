@@ -26,7 +26,7 @@ export class Zone {
   })
   code!: string;
 
-  @Prop({ enum: ZONE_TYPES, required: true })
+  @Prop({ type: String, enum: ZONE_TYPES, required: true })
   type!: ZoneType;
 
   @Prop({ default: '' })
