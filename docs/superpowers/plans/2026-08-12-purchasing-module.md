@@ -624,6 +624,15 @@ Add to `apps/api/src/purchasing/purchasing.service.spec.ts`, inside the existing
       return doc;
     }
 
+    it('rejects submit when the PO is not DRAFT', async () => {
+      purchaseOrderModel.findById.mockResolvedValue(
+        mutableDoc({ status: 'PENDING' }),
+      );
+      await expect(service.submit('po-1')).rejects.toThrow(
+        'ใบสั่งซื้อนี้ไม่อยู่ในสถานะร่าง',
+      );
+    });
+
     it('rejects approve when the PO is not PENDING', async () => {
       purchaseOrderModel.findById.mockResolvedValue(
         mutableDoc({ status: 'DRAFT' }),
@@ -666,6 +675,27 @@ Add to `apps/api/src/purchasing/purchasing.service.spec.ts`, inside the existing
       expect(doc.status).toBe('APPROVED');
       expect(doc.approvedBy).toEqual(new Types.ObjectId(userId));
       expect(doc.approvedAt).toBeInstanceOf(Date);
+    });
+
+    it('records rejectedBy/rejectionReason and moves PENDING to REJECTED', async () => {
+      const doc = mutableDoc({ status: 'PENDING' });
+      purchaseOrderModel.findById.mockResolvedValue(doc);
+      await service.reject(
+        'po-1',
+        { rejectionReason: 'สินค้าราคาสูงเกินไป' },
+        userId,
+      );
+      expect(doc.status).toBe('REJECTED');
+      expect(doc.rejectedBy).toEqual(new Types.ObjectId(userId));
+      expect(doc.rejectionReason).toBe('สินค้าราคาสูงเกินไป');
+    });
+
+    it('records cancelledBy and moves PENDING to CANCELLED', async () => {
+      const doc = mutableDoc({ status: 'PENDING' });
+      purchaseOrderModel.findById.mockResolvedValue(doc);
+      await service.cancel('po-1', userId);
+      expect(doc.status).toBe('CANCELLED');
+      expect(doc.cancelledBy).toEqual(new Types.ObjectId(userId));
     });
   });
 ```
