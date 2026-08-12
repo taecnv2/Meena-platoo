@@ -320,25 +320,25 @@ export const PERMISSION_REGISTRY: PermissionRegistryEntry[] = [
     code: PERMISSION_CODES.PURCHASING_READ,
     name: 'ดูการจัดซื้อ',
     module: 'PURCHASING',
-    description: 'Reserved for P1 Purchasing module',
+    description: 'Allows user to view purchase orders',
   },
   {
     code: PERMISSION_CODES.PURCHASING_CREATE,
     name: 'สร้างใบสั่งซื้อ',
     module: 'PURCHASING',
-    description: 'Reserved for P1 Purchasing module',
+    description: 'Allows user to create, submit, and cancel purchase orders',
   },
   {
     code: PERMISSION_CODES.PURCHASING_APPROVE,
     name: 'อนุมัติใบสั่งซื้อ',
     module: 'PURCHASING',
-    description: 'Reserved for P1 Purchasing module',
+    description: 'Allows user to approve or reject purchase orders',
   },
   {
     code: PERMISSION_CODES.PURCHASING_RECEIVE,
     name: 'รับสินค้าตามใบสั่งซื้อ',
     module: 'PURCHASING',
-    description: 'Reserved for P1 Purchasing module',
+    description: 'Allows user to receive goods against an approved purchase order',
   },
 
   {

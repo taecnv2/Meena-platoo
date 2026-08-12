@@ -21,6 +21,7 @@ import { StockMovementsModule } from './stock-movements/stock-movements.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { TransfersModule } from './transfers/transfers.module';
 import { RequisitionsModule } from './requisitions/requisitions.module';
+import { PurchasingModule } from './purchasing/purchasing.module';
 import { StockCountsModule } from './stock-counts/stock-counts.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 
@@ -45,6 +46,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
     InventoryModule,
     TransfersModule,
     RequisitionsModule,
+    PurchasingModule,
     StockCountsModule,
     DashboardModule,
   ],
