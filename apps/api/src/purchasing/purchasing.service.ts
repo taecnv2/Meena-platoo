@@ -98,7 +98,7 @@ export class PurchasingService {
         });
         return created.toObject();
       } catch (error) {
-        if (!isDuplicateKeyError(error) || attempt === MAX_CODE_RETRIES - 1) {
+        if (!isDuplicateKeyError(error)) {
           throw error;
         }
       }

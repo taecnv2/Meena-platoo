@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ConflictException } from '@nestjs/common';
 import { getModelToken } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
 import { IngredientsService } from '../ingredients/ingredients.service';
@@ -94,6 +95,24 @@ describe('PurchasingService', () => {
           ],
         }),
       );
+    });
+
+    it('throws ConflictException with Thai message after exhausting all retries on duplicate key errors', async () => {
+      purchaseOrderModel.create.mockRejectedValue({ code: 11000 });
+
+      await expect(
+        service.create(
+          {
+            supplierId,
+            items: [{ ingredientId, orderedQuantity: 10, unitCost: 42 }],
+          },
+          userId,
+        ),
+      ).rejects.toThrow(
+        new ConflictException('ไม่สามารถสร้างเลขที่ใบสั่งซื้อได้ กรุณาลองใหม่'),
+      );
+
+      expect(purchaseOrderModel.create).toHaveBeenCalledTimes(5);
     });
   });
 });
