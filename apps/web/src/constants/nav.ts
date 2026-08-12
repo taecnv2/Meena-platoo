@@ -12,6 +12,7 @@ import {
   FileText,
   ListChecks,
   FilePlus,
+  ShoppingCart,
   Database,
   Wheat,
   Tags,
@@ -64,6 +65,14 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: 'รายการใบเบิก', path: '/requisitions', permission: PERMISSIONS.REQUISITION_READ, icon: ListChecks },
       { label: 'สร้างใบเบิก', path: '/requisitions/new', permission: PERMISSIONS.REQUISITION_CREATE, icon: FilePlus },
+    ],
+  },
+  {
+    label: 'จัดซื้อ',
+    icon: ShoppingCart,
+    items: [
+      { label: 'ใบสั่งซื้อ', path: '/purchasing', permission: PERMISSIONS.PURCHASING_READ, icon: ListChecks },
+      { label: 'สร้างใบสั่งซื้อ', path: '/purchasing/new', permission: PERMISSIONS.PURCHASING_CREATE, icon: FilePlus },
     ],
   },
   {

@@ -23,6 +23,9 @@ import { StockCountsPage } from '@/pages/stock-counts/StockCountsPage'
 import { RequisitionsListPage } from '@/pages/requisitions/RequisitionsListPage'
 import { CreateRequisitionPage } from '@/pages/requisitions/CreateRequisitionPage'
 import { RequisitionDetailPage } from '@/pages/requisitions/RequisitionDetailPage'
+import { PurchaseOrdersListPage } from '@/pages/purchasing/PurchaseOrdersListPage'
+import { CreatePurchaseOrderPage } from '@/pages/purchasing/CreatePurchaseOrderPage'
+import { PurchaseOrderDetailPage } from '@/pages/purchasing/PurchaseOrderDetailPage'
 import { UsersPage } from '@/pages/management/UsersPage'
 import { RolesPage } from '@/pages/management/RolesPage'
 
@@ -67,6 +70,14 @@ export function AppRouter() {
       </Route>
       <Route element={<ProtectedRoute permission={PERMISSIONS.REQUISITION_CREATE} />}>
         <Route path="/requisitions/new" element={<CreateRequisitionPage />} />
+      </Route>
+
+      <Route element={<ProtectedRoute permission={PERMISSIONS.PURCHASING_READ} />}>
+        <Route path="/purchasing" element={<PurchaseOrdersListPage />} />
+        <Route path="/purchasing/:id" element={<PurchaseOrderDetailPage />} />
+      </Route>
+      <Route element={<ProtectedRoute permission={PERMISSIONS.PURCHASING_CREATE} />}>
+        <Route path="/purchasing/new" element={<CreatePurchaseOrderPage />} />
       </Route>
 
       <Route element={<ProtectedRoute permission={PERMISSIONS.INGREDIENTS_READ} />}>
