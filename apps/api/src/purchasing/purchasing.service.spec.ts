@@ -115,4 +115,61 @@ describe('PurchasingService', () => {
       expect(purchaseOrderModel.create).toHaveBeenCalledTimes(5);
     });
   });
+
+  describe('status transitions', () => {
+    function mutableDoc(overrides: Record<string, unknown>) {
+      const doc: Record<string, unknown> = {
+        status: 'DRAFT',
+        items: [],
+        save: jest.fn().mockResolvedValue(undefined),
+        ...overrides,
+      };
+      doc.toObject = jest.fn(() => ({ status: doc.status, items: doc.items }));
+      return doc;
+    }
+
+    it('rejects approve when the PO is not PENDING', async () => {
+      purchaseOrderModel.findById.mockResolvedValue(
+        mutableDoc({ status: 'DRAFT' }),
+      );
+      await expect(service.approve('po-1', userId)).rejects.toThrow(
+        'ใบสั่งซื้อนี้ไม่อยู่ในสถานะรออนุมัติ',
+      );
+    });
+
+    it('rejects reject() when the PO is not PENDING', async () => {
+      purchaseOrderModel.findById.mockResolvedValue(
+        mutableDoc({ status: 'APPROVED' }),
+      );
+      await expect(
+        service.reject('po-1', { rejectionReason: 'สินค้าราคาสูงเกินไป' }, userId),
+      ).rejects.toThrow('ใบสั่งซื้อนี้ไม่อยู่ในสถานะรออนุมัติ');
+    });
+
+    it('rejects cancel once the PO has already been approved', async () => {
+      purchaseOrderModel.findById.mockResolvedValue(
+        mutableDoc({ status: 'APPROVED' }),
+      );
+      await expect(service.cancel('po-1', userId)).rejects.toThrow(
+        'ไม่สามารถยกเลิกใบสั่งซื้อที่อนุมัติแล้วได้',
+      );
+    });
+
+    it('moves a DRAFT PO to PENDING on submit', async () => {
+      const doc = mutableDoc({ status: 'DRAFT' });
+      purchaseOrderModel.findById.mockResolvedValue(doc);
+      await service.submit('po-1');
+      expect(doc.status).toBe('PENDING');
+      expect(doc.save).toHaveBeenCalled();
+    });
+
+    it('records approvedBy/approvedAt and moves PENDING to APPROVED', async () => {
+      const doc = mutableDoc({ status: 'PENDING' });
+      purchaseOrderModel.findById.mockResolvedValue(doc);
+      await service.approve('po-1', userId);
+      expect(doc.status).toBe('APPROVED');
+      expect(doc.approvedBy).toEqual(new Types.ObjectId(userId));
+      expect(doc.approvedAt).toBeInstanceOf(Date);
+    });
+  });
 });

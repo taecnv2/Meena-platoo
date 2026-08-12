@@ -5,12 +5,13 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { QueryFilter, Model } from 'mongoose';
+import { QueryFilter, Model, Types } from 'mongoose';
 import { buildDateRangeQuery } from '../common/utils/date-range.util';
 import { IngredientsService } from '../ingredients/ingredients.service';
 import { InventoryService } from '../inventory/inventory.service';
 import { ZonesService } from '../zones/zones.service';
 import { CreatePurchaseOrderDto } from './dto/create-purchase-order.dto';
+import { RejectPurchaseOrderDto } from './dto/reject-purchase-order.dto';
 import {
   PurchaseOrder,
   PurchaseOrderDocument,
@@ -106,6 +107,57 @@ export class PurchasingService {
     throw new ConflictException(
       'ไม่สามารถสร้างเลขที่ใบสั่งซื้อได้ กรุณาลองใหม่',
     );
+  }
+
+  async submit(id: string): Promise<PurchaseOrder> {
+    const purchaseOrder = await this.getMutableOrThrow(id);
+    if (purchaseOrder.status !== 'DRAFT') {
+      throw new BadRequestException('ใบสั่งซื้อนี้ไม่อยู่ในสถานะร่าง');
+    }
+    purchaseOrder.status = 'PENDING';
+    await purchaseOrder.save();
+    return purchaseOrder.toObject();
+  }
+
+  async approve(id: string, userId: string): Promise<PurchaseOrder> {
+    const purchaseOrder = await this.getMutableOrThrow(id);
+    if (purchaseOrder.status !== 'PENDING') {
+      throw new BadRequestException('ใบสั่งซื้อนี้ไม่อยู่ในสถานะรออนุมัติ');
+    }
+    purchaseOrder.status = 'APPROVED';
+    purchaseOrder.approvedBy = new Types.ObjectId(userId);
+    purchaseOrder.approvedAt = new Date();
+    await purchaseOrder.save();
+    return purchaseOrder.toObject();
+  }
+
+  async reject(
+    id: string,
+    dto: RejectPurchaseOrderDto,
+    userId: string,
+  ): Promise<PurchaseOrder> {
+    const purchaseOrder = await this.getMutableOrThrow(id);
+    if (purchaseOrder.status !== 'PENDING') {
+      throw new BadRequestException('ใบสั่งซื้อนี้ไม่อยู่ในสถานะรออนุมัติ');
+    }
+    purchaseOrder.status = 'REJECTED';
+    purchaseOrder.rejectedBy = new Types.ObjectId(userId);
+    purchaseOrder.rejectionReason = dto.rejectionReason;
+    await purchaseOrder.save();
+    return purchaseOrder.toObject();
+  }
+
+  async cancel(id: string, userId: string): Promise<PurchaseOrder> {
+    const purchaseOrder = await this.getMutableOrThrow(id);
+    if (!['DRAFT', 'PENDING'].includes(purchaseOrder.status)) {
+      throw new BadRequestException(
+        'ไม่สามารถยกเลิกใบสั่งซื้อที่อนุมัติแล้วได้',
+      );
+    }
+    purchaseOrder.status = 'CANCELLED';
+    purchaseOrder.cancelledBy = new Types.ObjectId(userId);
+    await purchaseOrder.save();
+    return purchaseOrder.toObject();
   }
 
   private async getMutableOrThrow(
