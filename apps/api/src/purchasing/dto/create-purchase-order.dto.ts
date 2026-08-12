@@ -1,6 +1,7 @@
 import { Type } from 'class-transformer';
 import {
   ArrayMinSize,
+  ArrayUnique,
   IsArray,
   IsMongoId,
   IsNumber,
@@ -32,6 +33,7 @@ export class CreatePurchaseOrderDto {
 
   @IsArray()
   @ArrayMinSize(1)
+  @ArrayUnique((item: CreatePurchaseOrderItemDto) => item.ingredientId)
   @ValidateNested({ each: true })
   @Type(() => CreatePurchaseOrderItemDto)
   items!: CreatePurchaseOrderItemDto[];
