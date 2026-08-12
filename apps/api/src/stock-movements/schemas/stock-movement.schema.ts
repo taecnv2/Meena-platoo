@@ -59,10 +59,10 @@ export class StockMovement {
   @Prop({ required: true })
   unit!: string;
 
-  @Prop({ type: String, enum: MOVEMENT_TYPES, required: true, index: true })
+  @Prop({ enum: MOVEMENT_TYPES, required: true, index: true })
   movementType!: MovementType;
 
-  @Prop({ type: String, enum: REFERENCE_TYPES, required: true })
+  @Prop({ enum: REFERENCE_TYPES, required: true })
   referenceType!: ReferenceType;
 
   @Prop({ type: MongooseSchema.Types.ObjectId, default: null, index: true })
