@@ -17,6 +17,7 @@
 - UI copy is Thai; technical identifiers (types, fields, routes) are English (plan.md §63–64).
 - This codebase currently has **zero** test files (no `*.spec.ts` anywhere, no `mongodb-memory-server` dependency, only a boilerplate `app.e2e-spec.ts` health check). This plan writes real Jest **unit tests** for `PurchasingService` using mocked Mongoose models/services — no DB required. It does **not** add e2e/integration tests, since that would require introducing new test infrastructure (e.g. `mongodb-memory-server`) that is out of scope for this feature and not established anywhere else in the codebase.
 - No `@ZoneScope` decorator is used anywhere in the Purchasing controller — delivery is always the WAREHOUSE zone, so there is no per-request zone to validate.
+- **Discovered during Task 1 (amended after initial review):** `apps/api/tsconfig.json` sets `isolatedModules: true`, which makes `ts-jest` transpile each file without cross-file type information. Combined with `@nestjs/mongoose`'s `@Prop()` decorator, this means any Mongoose schema property typed as a string-literal union (e.g. `status!: PurchaseOrderStatus`) with no explicit `type` throws `Cannot determine a type for the "<Class>.<field>" field (union/intersection/ambiguous type was used)` the moment the schema module is imported under Jest — confirmed by reproducing the identical crash on the pre-existing `RequisitionSchema.status` field, so this is not new breakage, just never previously exercised (this codebase had zero test files before this plan). The real `nest build` output is unaffected (`tsc`'s full-program compile resolves the union type without needing `isolatedModules`), so this is purely a test-time issue. **Every `@Prop()` for an enum/union-typed field written or touched in this plan must pass an explicit `type: String` alongside `enum:`** — e.g. `@Prop({ type: String, enum: PURCHASE_ORDER_STATUSES, default: 'DRAFT', index: true })`. Task 1 and Task 2 below already reflect this.
 
 ---
 
@@ -46,9 +47,9 @@ describe('StockMovement REFERENCE_TYPES', () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `cd apps/api && npm run test -- stock-movement.schema`
-Expected: FAIL — `expect(received).toContain(expected)` with `'PURCHASE_ORDER'` not in the array.
+Expected: FAIL. The failure will actually be `Cannot determine a type for the "StockMovement.movementType" field (union/intersection/ambiguous type was used)`, thrown at import time by `@nestjs/mongoose`'s `@Prop()` decorator — not a clean `toContain` assertion failure. This is a genuine, reproducible pre-existing gap: `apps/api/tsconfig.json` has `isolatedModules: true`, so `ts-jest` cannot resolve the `MovementType`/`ReferenceType` string-literal unions through cross-file type information, and `@nestjs/mongoose` refuses to guess. It reproduces identically on the pre-existing `RequisitionSchema.status` field, so it is not something this task introduces — it has simply never been exercised, because this codebase had zero test files before this plan. `nest build` (real `tsc`) is unaffected. Step 3 fixes this as part of adding the new reference type, since any import from this module (including just `REFERENCE_TYPES`) evaluates the whole file, including the class decorators.
 
-- [ ] **Step 3: Add the reference type**
+- [ ] **Step 3: Add the reference type and fix the enum Prop decorators**
 
 In `apps/api/src/stock-movements/schemas/stock-movement.schema.ts`, update the `REFERENCE_TYPES` array (currently lines 18–26):
 
@@ -64,6 +65,16 @@ export const REFERENCE_TYPES = [
   'MANUAL',
 ] as const;
 export type ReferenceType = (typeof REFERENCE_TYPES)[number];
+```
+
+Also add an explicit `type: String` to the `movementType` and `referenceType` `@Prop()` decorators further down in the same file (this is required for Step 4 below to pass, per the Step 2 explanation above — not optional cleanup):
+
+```ts
+  @Prop({ type: String, enum: MOVEMENT_TYPES, required: true, index: true })
+  movementType!: MovementType;
+
+  @Prop({ type: String, enum: REFERENCE_TYPES, required: true })
+  referenceType!: ReferenceType;
 ```
 
 - [ ] **Step 4: Run test to verify it passes**
@@ -196,7 +207,7 @@ export class PurchaseOrder {
   })
   supplierId!: Types.ObjectId;
 
-  @Prop({ enum: PURCHASE_ORDER_STATUSES, default: 'DRAFT', index: true })
+  @Prop({ type: String, enum: PURCHASE_ORDER_STATUSES, default: 'DRAFT', index: true })
   status!: PurchaseOrderStatus;
 
   @Prop({ type: [PurchaseOrderItemSchema], required: true })
@@ -235,6 +246,8 @@ export const PurchaseOrderSchema = SchemaFactory.createForClass(PurchaseOrder);
 PurchaseOrderSchema.index({ supplierId: 1, createdAt: -1 });
 PurchaseOrderSchema.index({ status: 1, createdAt: -1 });
 ```
+
+Note the `status` prop passes `type: String` alongside `enum: PURCHASE_ORDER_STATUSES` — see the Global Constraints entry on `isolatedModules`/`ts-jest`/`@nestjs/mongoose`: without it, importing this schema under Jest throws `Cannot determine a type for the "PurchaseOrder.status" field`, since `PurchaseOrderStatus` is a string-literal union and `ts-jest` cannot resolve it through `isolatedModules`. This is required for Step 4 below to pass, not optional polish.
 
 - [ ] **Step 4: Run test to verify it passes**
 
