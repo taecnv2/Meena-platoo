@@ -24,8 +24,16 @@ describe('CreatePurchaseOrderDto', () => {
     const dto = plainToInstance(CreatePurchaseOrderDto, {
       supplierId: new Types.ObjectId().toString(),
       items: [
-        { ingredientId: new Types.ObjectId().toString(), orderedQuantity: 5, unitCost: 10 },
-        { ingredientId: new Types.ObjectId().toString(), orderedQuantity: 3, unitCost: 12 },
+        {
+          ingredientId: new Types.ObjectId().toString(),
+          orderedQuantity: 5,
+          unitCost: 10,
+        },
+        {
+          ingredientId: new Types.ObjectId().toString(),
+          orderedQuantity: 3,
+          unitCost: 12,
+        },
       ],
     });
     const errors = await validate(dto);
