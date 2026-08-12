@@ -525,6 +525,9 @@ export class PurchasingService {
       }),
     );
 
+    // Only a non-duplicate-key error aborts immediately. A duplicate-key error on the LAST
+    // attempt must fall through to the loop exit below, not rethrow the raw Mongo error --
+    // that's what turns it into the friendly ConflictException instead of leaking E11000.
     for (let attempt = 0; attempt < MAX_CODE_RETRIES; attempt += 1) {
       const code = await this.generateCode();
       try {
@@ -539,7 +542,7 @@ export class PurchasingService {
         });
         return created.toObject();
       } catch (error) {
-        if (!isDuplicateKeyError(error) || attempt === MAX_CODE_RETRIES - 1) {
+        if (!isDuplicateKeyError(error)) {
           throw error;
         }
       }
