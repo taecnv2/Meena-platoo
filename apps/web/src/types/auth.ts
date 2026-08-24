@@ -6,6 +6,7 @@ export interface AuthUser {
   permissions: string[]
   zoneIds: string[]
   isSuperScope: boolean
+  mustChangePassword: boolean
 }
 
 export interface AuthResponse {

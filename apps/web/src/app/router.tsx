@@ -1,11 +1,13 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { ProtectedRoute } from '@/features/auth/ProtectedRoute'
+import { RequirePasswordChange } from '@/features/auth/RequirePasswordChange'
 import { useAuth } from '@/features/auth/AuthContext'
 import { AuthLayout } from '@/layouts/AuthLayout'
 import { LoadingState } from '@/components/LoadingState'
 import { PERMISSIONS } from '@/constants/permissions'
 import { getDefaultRouteForUser } from '@/constants/nav'
 import { LoginPage } from '@/pages/LoginPage'
+import { ChangePasswordPage } from '@/pages/ChangePasswordPage'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { IngredientsPage } from '@/pages/master-data/IngredientsPage'
@@ -47,6 +49,16 @@ export function AppRouter() {
           <AuthLayout>
             <LoginPage />
           </AuthLayout>
+        }
+      />
+      <Route
+        path="/change-password"
+        element={
+          <RequirePasswordChange>
+            <AuthLayout>
+              <ChangePasswordPage />
+            </AuthLayout>
+          </RequirePasswordChange>
         }
       />
 
@@ -148,6 +160,9 @@ function RootRedirect() {
   }
   if (!isAuthenticated || !user) {
     return <Navigate to="/login" replace />
+  }
+  if (user.mustChangePassword) {
+    return <Navigate to="/change-password" replace />
   }
   return <Navigate to={getDefaultRouteForUser(user)} replace />
 }

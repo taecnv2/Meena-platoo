@@ -31,7 +31,7 @@ export function LoginPage() {
     setFormError(null)
     try {
       const user = await login(values.username, values.password)
-      navigate(getDefaultRouteForUser(user), { replace: true })
+      navigate(user.mustChangePassword ? '/change-password' : getDefaultRouteForUser(user), { replace: true })
     } catch (error) {
       setFormError(getErrorMessage(error, 'เข้าสู่ระบบไม่สำเร็จ'))
     }

@@ -52,6 +52,10 @@ class EnvironmentVariables {
   @IsString()
   @IsNotEmpty()
   CORS_ORIGIN!: string;
+
+  @IsOptional()
+  @IsString()
+  DEFAULT_USER_PASSWORD?: string;
 }
 
 export function validate(

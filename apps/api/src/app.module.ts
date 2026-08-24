@@ -6,6 +6,7 @@ import configuration from './config/configuration';
 import { validate } from './config/env.validation';
 import { DatabaseModule } from './database/database.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
+import { ForcePasswordChangeGuard } from './common/guards/force-password-change.guard';
 import { PermissionGuard } from './common/guards/permission.guard';
 import { ZoneScopeGuard } from './common/guards/zone-scope.guard';
 import { PermissionsModule } from './permissions/permissions.module';
@@ -61,6 +62,7 @@ import { ReportsModule } from './reports/reports.module';
   controllers: [AppController],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: ForcePasswordChangeGuard },
     { provide: APP_GUARD, useClass: PermissionGuard },
     { provide: APP_GUARD, useClass: ZoneScopeGuard },
   ],

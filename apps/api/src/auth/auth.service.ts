@@ -85,6 +85,18 @@ export class AuthService {
     return this.issueSession(authContext, meta);
   }
 
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<void> {
+    await this.usersService.changePassword(
+      userId,
+      currentPassword,
+      newPassword,
+    );
+  }
+
   async logout(rawToken: string | undefined): Promise<void> {
     if (!rawToken) {
       return;
@@ -152,6 +164,7 @@ export class AuthService {
       permissions: authContext.permissions,
       zoneIds: authContext.zoneIds,
       isSuperScope: authContext.isSuperScope,
+      mustChangePassword: authContext.mustChangePassword,
     };
 
     return { accessToken, refreshToken, user };

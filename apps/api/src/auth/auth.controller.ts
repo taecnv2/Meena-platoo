@@ -11,9 +11,11 @@ import { ConfigService } from '@nestjs/config';
 import type { CookieOptions, Request, Response } from 'express';
 import type { AppConfig } from '../config/configuration';
 import { Public } from '../common/decorators/public.decorator';
+import { AllowPasswordChangePending } from '../common/decorators/allow-password-change-pending.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { RequestUser } from '../common/types/authenticated-request';
 import { AuthService, type AuthResult } from './auth.service';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
 
 @Controller('auth')
@@ -63,9 +65,24 @@ export class AuthController {
     return { success: true };
   }
 
+  @AllowPasswordChangePending()
   @Get('me')
   me(@CurrentUser() user: RequestUser): RequestUser {
     return user;
+  }
+
+  @AllowPasswordChangePending()
+  @Post('change-password')
+  async changePassword(
+    @CurrentUser() user: RequestUser,
+    @Body() dto: ChangePasswordDto,
+  ): Promise<{ success: true }> {
+    await this.authService.changePassword(
+      user.id,
+      dto.currentPassword,
+      dto.newPassword,
+    );
+    return { success: true };
   }
 
   private meta(req: Request): { userAgent?: string; ipAddress?: string } {

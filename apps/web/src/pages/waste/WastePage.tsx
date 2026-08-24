@@ -122,6 +122,7 @@ export function WastePage() {
     { key: 'ingredient', header: 'วัตถุดิบ', render: (row) => ingredientMap.get(row.ingredientId) ?? '-' },
     { key: 'quantity', header: 'จำนวน', render: (row) => formatQuantity(row.quantity, row.unit) },
     { key: 'reason', header: 'สาเหตุ', render: (row) => WASTE_REASON_LABEL[row.reason] },
+    { key: 'remark', header: 'หมายเหตุ', render: (row) => row.remark },
     {
       key: 'status',
       header: 'สถานะ',

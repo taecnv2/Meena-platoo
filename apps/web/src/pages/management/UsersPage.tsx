@@ -23,7 +23,6 @@ const createSchema = z.object({
   username: z.string().min(3, 'อย่างน้อย 3 ตัวอักษร'),
   email: z.string().email('อีเมลไม่ถูกต้อง'),
   name: z.string().min(1, 'กรุณากรอกชื่อ'),
-  password: z.string().min(8, 'อย่างน้อย 8 ตัวอักษร'),
   roleId: z.string().min(1, 'กรุณาเลือกบทบาท'),
   zoneIds: z.array(z.string()).optional(),
 })
@@ -42,6 +41,11 @@ export function UsersPage() {
   const { data: users, isLoading } = useQuery({ queryKey: ['users'], queryFn: usersApi.list })
   const { data: roles } = useQuery({ queryKey: ['roles'], queryFn: rolesApi.list })
   const { data: zones } = useQuery({ queryKey: ['zones'], queryFn: zonesApi.list })
+  const { data: defaultPasswordInfo } = useQuery({
+    queryKey: ['users', 'default-password'],
+    queryFn: usersApi.getDefaultPassword,
+    enabled: canCreate,
+  })
 
   const roleMap = useMemo(() => new Map((roles ?? []).map((r) => [r._id, r.name])), [roles])
   const zoneMap = useMemo(() => new Map((zones ?? []).map((z) => [z._id, z.name])), [zones])
@@ -55,11 +59,11 @@ export function UsersPage() {
   } = useForm<CreateFormValues>({ resolver: zodResolver(createSchema) })
 
   const openCreate = () => {
-    reset({ username: '', email: '', name: '', password: '', roleId: '', zoneIds: [] })
+    reset({ username: '', email: '', name: '', roleId: '', zoneIds: [] })
     setEditing('new')
   }
   const openEdit = (user: UserAccount) => {
-    reset({ username: user.username, email: user.email, name: user.name, password: '', roleId: user.roleId, zoneIds: user.zoneIds })
+    reset({ username: user.username, email: user.email, name: user.name, roleId: user.roleId, zoneIds: user.zoneIds })
     setEditing(user)
   }
 
@@ -69,7 +73,7 @@ export function UsersPage() {
         await usersApi.create(values)
         toast.show('success', 'สร้างผู้ใช้งานสำเร็จ')
       } else if (editing) {
-        const { password: _password, username: _username, ...rest } = values
+        const { username: _username, ...rest } = values
         await usersApi.update(editing._id, rest)
         toast.show('success', 'บันทึกการแก้ไขสำเร็จ')
       }
@@ -154,7 +158,13 @@ export function UsersPage() {
           <Input label="ชื่อผู้ใช้งาน" disabled={editing !== 'new'} error={errors.username?.message} {...register('username')} />
           <Input label="อีเมล" error={errors.email?.message} {...register('email')} />
           <Input label="ชื่อ-นามสกุล" error={errors.name?.message} {...register('name')} />
-          {editing === 'new' ? <Input label="รหัสผ่าน" type="password" error={errors.password?.message} {...register('password')} /> : null}
+          {editing === 'new' ? (
+            <p className="rounded-lg bg-primary/5 p-3 text-sm text-text-secondary">
+              ระบบจะกำหนดรหัสผ่านเริ่มต้นให้อัตโนมัติเป็น{' '}
+              <span className="font-mono font-semibold">{defaultPasswordInfo?.password ?? '...'}</span>{' '}
+              กรุณาแจ้งให้ผู้ใช้งานใหม่ทราบ ระบบจะบังคับให้เปลี่ยนรหัสผ่านในการเข้าสู่ระบบครั้งแรก
+            </p>
+          ) : null}
           <Select
             label="บทบาท"
             placeholder="เลือกบทบาท"
@@ -194,7 +204,13 @@ export function UsersPage() {
 
       <Modal isOpen={resettingUser !== null} onClose={() => setResettingUser(null)} title="รีเซ็ตรหัสผ่าน">
         <div className="flex flex-col gap-4">
-          <Input label="รหัสผ่านใหม่" type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} hint="อย่างน้อย 8 ตัวอักษร" />
+          <Input
+            label="รหัสผ่านใหม่"
+            type="password"
+            value={newPassword}
+            onChange={(event) => setNewPassword(event.target.value)}
+            hint="อย่างน้อย 8 ตัวอักษร ผู้ใช้งานจะต้องเปลี่ยนรหัสผ่านนี้ในการเข้าสู่ระบบครั้งถัดไป"
+          />
           <Button disabled={newPassword.length < 8} onClick={() => void handleResetPassword()}>
             บันทึกรหัสผ่านใหม่
           </Button>
