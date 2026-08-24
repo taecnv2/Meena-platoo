@@ -14,12 +14,18 @@
 
   --color-success: #16a34a;
   --color-success-light: #dcfce7;
+  --color-success-border: #86efac;
   --color-warning: #d97706;
   --color-warning-light: #fef3c7;
+  --color-warning-border: #fcd34d;
   --color-danger: #dc2626;
   --color-danger-light: #fee2e2;
+  --color-danger-border: #fca5a5;
   --color-info: #0284c7;
   --color-info-light: #e0f2fe;
+  --color-info-border: #7dd3fc;
+
+  --gradient-primary: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
 
   --font-sans: "Noto Sans Thai", "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
