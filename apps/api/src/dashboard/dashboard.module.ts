@@ -17,6 +17,15 @@ import {
   StockCount,
   StockCountSchema,
 } from '../stock-counts/schemas/stock-count.schema';
+import {
+  StockMovement,
+  StockMovementSchema,
+} from '../stock-movements/schemas/stock-movement.schema';
+import { Waste, WasteSchema } from '../waste/schemas/waste.schema';
+import {
+  PurchaseOrder,
+  PurchaseOrderSchema,
+} from '../purchasing/schemas/purchase-order.schema';
 import { DashboardController } from './dashboard.controller';
 import { DashboardService } from './dashboard.service';
 
@@ -28,6 +37,9 @@ import { DashboardService } from './dashboard.service';
       { name: Requisition.name, schema: RequisitionSchema },
       { name: Transfer.name, schema: TransferSchema },
       { name: StockCount.name, schema: StockCountSchema },
+      { name: StockMovement.name, schema: StockMovementSchema },
+      { name: Waste.name, schema: WasteSchema },
+      { name: PurchaseOrder.name, schema: PurchaseOrderSchema },
     ]),
   ],
   controllers: [DashboardController],

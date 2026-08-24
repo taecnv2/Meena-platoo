@@ -1,6 +1,10 @@
 import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import type { Types } from 'mongoose';
 import { RequirePermission } from '../common/decorators/require-permission.decorator';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { PERMISSION_CODES } from '../common/constants/permissions';
+import type { RequestUser } from '../common/types/authenticated-request';
+import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { CreateZoneDto } from './dto/create-zone.dto';
 import { UpdateZoneStatusDto } from './dto/update-zone-status.dto';
 import { UpdateZoneDto } from './dto/update-zone.dto';
@@ -9,7 +13,10 @@ import { ZonesService } from './zones.service';
 
 @Controller('zones')
 export class ZonesController {
-  constructor(private readonly zonesService: ZonesService) {}
+  constructor(
+    private readonly zonesService: ZonesService,
+    private readonly auditLogsService: AuditLogsService,
+  ) {}
 
   @RequirePermission(PERMISSION_CODES.ZONES_READ)
   @Get()
@@ -25,8 +32,20 @@ export class ZonesController {
 
   @RequirePermission(PERMISSION_CODES.ZONES_CREATE)
   @Post()
-  create(@Body() dto: CreateZoneDto): Promise<Zone> {
-    return this.zonesService.create(dto);
+  async create(
+    @Body() dto: CreateZoneDto,
+    @CurrentUser() actor: RequestUser,
+  ): Promise<Zone> {
+    const zone = await this.zonesService.create(dto);
+    const { _id } = zone as Zone & { _id: Types.ObjectId };
+    await this.auditLogsService.log({
+      userId: actor.id,
+      action: 'ZONE_CREATED',
+      entity: 'Zone',
+      entityId: _id.toString(),
+      after: zone,
+    });
+    return zone;
   }
 
   @RequirePermission(PERMISSION_CODES.ZONES_UPDATE)

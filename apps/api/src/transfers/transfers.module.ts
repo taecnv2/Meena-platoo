@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { AuditLogsModule } from '../audit-logs/audit-logs.module';
 import { IngredientsModule } from '../ingredients/ingredients.module';
 import { InventoryModule } from '../inventory/inventory.module';
 import { Transfer, TransferSchema } from './schemas/transfer.schema';
@@ -13,6 +14,7 @@ import { TransfersService } from './transfers.service';
     ]),
     IngredientsModule,
     InventoryModule,
+    AuditLogsModule,
   ],
   controllers: [TransfersController],
   providers: [TransfersService],

@@ -7,8 +7,10 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { QueryFilter, Model, Types } from 'mongoose';
 import { buildDateRangeQuery } from '../common/utils/date-range.util';
+import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { IngredientsService } from '../ingredients/ingredients.service';
 import { InventoryService } from '../inventory/inventory.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { ZonesService } from '../zones/zones.service';
 import { CreatePurchaseOrderDto } from './dto/create-purchase-order.dto';
 import { ReceivePurchaseOrderDto } from './dto/receive-purchase-order.dto';
@@ -37,6 +39,8 @@ export class PurchasingService {
     private readonly ingredientsService: IngredientsService,
     private readonly inventoryService: InventoryService,
     private readonly zonesService: ZonesService,
+    private readonly auditLogsService: AuditLogsService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   findAll(filter: FindPurchaseOrdersFilter): Promise<PurchaseOrder[]> {
@@ -129,7 +133,16 @@ export class PurchasingService {
     purchaseOrder.approvedBy = new Types.ObjectId(userId);
     purchaseOrder.approvedAt = new Date();
     await purchaseOrder.save();
-    return purchaseOrder.toObject();
+    const approved = purchaseOrder.toObject();
+    await this.notificationsService.create({
+      userId: approved.createdBy.toString(),
+      type: 'PURCHASE_APPROVED',
+      title: 'ใบสั่งซื้อได้รับการอนุมัติ',
+      message: `ใบสั่งซื้อ ${approved.code} ได้รับการอนุมัติแล้ว`,
+      entity: 'PurchaseOrder',
+      entityId: approved._id.toString(),
+    });
+    return approved;
   }
 
   async reject(
@@ -145,7 +158,16 @@ export class PurchasingService {
     purchaseOrder.rejectedBy = new Types.ObjectId(userId);
     purchaseOrder.rejectionReason = dto.rejectionReason;
     await purchaseOrder.save();
-    return purchaseOrder.toObject();
+    const rejected = purchaseOrder.toObject();
+    await this.notificationsService.create({
+      userId: rejected.createdBy.toString(),
+      type: 'PURCHASE_REJECTED',
+      title: 'ใบสั่งซื้อถูกปฏิเสธ',
+      message: `ใบสั่งซื้อ ${rejected.code} ถูกปฏิเสธ: ${rejected.rejectionReason ?? ''}`,
+      entity: 'PurchaseOrder',
+      entityId: rejected._id.toString(),
+    });
+    return rejected;
   }
 
   async cancel(id: string, userId: string): Promise<PurchaseOrder> {
@@ -244,7 +266,15 @@ export class PurchasingService {
       purchaseOrder.completedAt = new Date();
     }
     await purchaseOrder.save();
-    return purchaseOrder.toObject();
+    const received = purchaseOrder.toObject();
+    await this.auditLogsService.log({
+      userId,
+      action: 'PURCHASE_RECEIVED',
+      entity: 'PurchaseOrder',
+      entityId: id,
+      after: { status: received.status, receivedItems },
+    });
+    return received;
   }
 
   private async getMutableOrThrow(id: string): Promise<PurchaseOrderDocument> {

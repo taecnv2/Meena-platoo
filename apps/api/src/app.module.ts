@@ -24,6 +24,10 @@ import { RequisitionsModule } from './requisitions/requisitions.module';
 import { PurchasingModule } from './purchasing/purchasing.module';
 import { StockCountsModule } from './stock-counts/stock-counts.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { WasteModule } from './waste/waste.module';
+import { AuditLogsModule } from './audit-logs/audit-logs.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { ReportsModule } from './reports/reports.module';
 
 @Module({
   imports: [
@@ -49,6 +53,10 @@ import { DashboardModule } from './dashboard/dashboard.module';
     PurchasingModule,
     StockCountsModule,
     DashboardModule,
+    WasteModule,
+    AuditLogsModule,
+    NotificationsModule,
+    ReportsModule,
   ],
   controllers: [AppController],
   providers: [

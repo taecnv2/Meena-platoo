@@ -1,7 +1,9 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { AuditLogsModule } from '../audit-logs/audit-logs.module';
 import { IngredientsModule } from '../ingredients/ingredients.module';
 import { InventoryModule } from '../inventory/inventory.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { ZonesModule } from '../zones/zones.module';
 import {
   PurchaseOrder,
@@ -18,6 +20,8 @@ import { PurchasingService } from './purchasing.service';
     IngredientsModule,
     InventoryModule,
     ZonesModule,
+    AuditLogsModule,
+    NotificationsModule,
   ],
   controllers: [PurchasingController],
   providers: [PurchasingService],

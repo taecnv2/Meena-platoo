@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { ClientSession, Connection, QueryFilter, Model } from 'mongoose';
+import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { IngredientsService } from '../ingredients/ingredients.service';
 import {
   MovementType,
@@ -47,6 +48,7 @@ export class InventoryService {
     private readonly stockMovementsService: StockMovementsService,
     private readonly ingredientsService: IngredientsService,
     private readonly zonesService: ZonesService,
+    private readonly auditLogsService: AuditLogsService,
   ) {}
 
   findBalances(filter: BalanceFilter): Promise<ZoneStock[]> {
@@ -146,7 +148,7 @@ export class InventoryService {
       referenceType: 'ADJUSTMENT' as ReferenceType,
       referenceId: null,
     };
-    return this.withTransaction((session) =>
+    const movement = await this.withTransaction((session) =>
       dto.quantityDelta > 0
         ? this.increment(
             {
@@ -165,6 +167,18 @@ export class InventoryService {
             session,
           ),
     );
+    await this.auditLogsService.log({
+      userId,
+      action: 'STOCK_ADJUSTED',
+      entity: 'ZoneStock',
+      entityId: dto.ingredientId,
+      after: {
+        zoneId: dto.zoneId,
+        quantityDelta: dto.quantityDelta,
+        reason: dto.reason,
+      },
+    });
+    return movement;
   }
 
   /** Atomic primitive: always increases stock, upserts the ZoneStock row. Requires a session. */

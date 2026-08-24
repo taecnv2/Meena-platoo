@@ -346,26 +346,27 @@ export const PERMISSION_REGISTRY: PermissionRegistryEntry[] = [
     code: PERMISSION_CODES.WASTE_READ,
     name: 'ดูของเสีย',
     module: 'WASTE',
-    description: 'Reserved for P1 Waste module',
+    description: 'Allows user to view waste records',
   },
   {
     code: PERMISSION_CODES.WASTE_CREATE,
     name: 'บันทึกของเสีย',
     module: 'WASTE',
-    description: 'Reserved for P1 Waste module',
+    description: 'Allows user to report waste',
   },
   {
     code: PERMISSION_CODES.WASTE_APPROVE,
     name: 'อนุมัติของเสีย',
     module: 'WASTE',
-    description: 'Reserved for P1 Waste module',
+    description: 'Allows user to approve or reject waste records',
   },
 
   {
     code: PERMISSION_CODES.REPORTS_READ,
     name: 'ดูรายงาน',
     module: 'REPORTS',
-    description: 'Reserved for P1 Reports module',
+    description:
+      'Allows user to view zone, requisition, and comparison reports',
   },
 
   {
@@ -423,6 +424,6 @@ export const PERMISSION_REGISTRY: PermissionRegistryEntry[] = [
     code: PERMISSION_CODES.AUDIT_READ,
     name: 'ดูประวัติการใช้งาน',
     module: 'AUDIT',
-    description: 'Reserved for P1 Audit Log module',
+    description: 'Allows user to view the audit log',
   },
 ];

@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { AuditLogsModule } from '../audit-logs/audit-logs.module';
 import { IngredientsModule } from '../ingredients/ingredients.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { TransfersModule } from '../transfers/transfers.module';
 import { ZonesModule } from '../zones/zones.module';
 import { Requisition, RequisitionSchema } from './schemas/requisition.schema';
@@ -15,6 +17,8 @@ import { RequisitionsService } from './requisitions.service';
     IngredientsModule,
     TransfersModule,
     ZonesModule,
+    AuditLogsModule,
+    NotificationsModule,
   ],
   controllers: [RequisitionsController],
   providers: [RequisitionsService],

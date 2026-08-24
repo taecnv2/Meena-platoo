@@ -7,7 +7,9 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { QueryFilter, Model, Types } from 'mongoose';
 import { buildDateRangeQuery } from '../common/utils/date-range.util';
+import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { IngredientsService } from '../ingredients/ingredients.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { TransfersService } from '../transfers/transfers.service';
 import { ZonesService } from '../zones/zones.service';
 import { ApproveRequisitionDto } from './dto/approve-requisition.dto';
@@ -38,6 +40,8 @@ export class RequisitionsService {
     private readonly ingredientsService: IngredientsService,
     private readonly transfersService: TransfersService,
     private readonly zonesService: ZonesService,
+    private readonly auditLogsService: AuditLogsService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   findAll(filter: FindRequisitionsFilter): Promise<Requisition[]> {
@@ -120,7 +124,7 @@ export class RequisitionsService {
         });
         return created.toObject();
       } catch (error) {
-        if (!isDuplicateKeyError(error) || attempt === MAX_CODE_RETRIES - 1) {
+        if (!isDuplicateKeyError(error)) {
           throw error;
         }
       }
@@ -154,7 +158,23 @@ export class RequisitionsService {
     requisition.approvedBy = new Types.ObjectId(userId);
     requisition.approvedAt = new Date();
     await requisition.save();
-    return requisition.toObject();
+    const approved = requisition.toObject();
+    await this.auditLogsService.log({
+      userId,
+      action: 'REQUISITION_APPROVED',
+      entity: 'Requisition',
+      entityId: approved._id.toString(),
+      after: { status: approved.status, items: approved.items },
+    });
+    await this.notificationsService.create({
+      userId: approved.requestedBy.toString(),
+      type: 'REQUISITION_APPROVED',
+      title: 'ใบเบิกสินค้าได้รับการอนุมัติ',
+      message: `ใบเบิก ${approved.code} ได้รับการอนุมัติแล้ว`,
+      entity: 'Requisition',
+      entityId: approved._id.toString(),
+    });
+    return approved;
   }
 
   async reject(
@@ -170,7 +190,16 @@ export class RequisitionsService {
     requisition.rejectedBy = new Types.ObjectId(userId);
     requisition.rejectionReason = dto.rejectionReason;
     await requisition.save();
-    return requisition.toObject();
+    const rejected = requisition.toObject();
+    await this.notificationsService.create({
+      userId: rejected.requestedBy.toString(),
+      type: 'REQUISITION_REJECTED',
+      title: 'ใบเบิกสินค้าถูกปฏิเสธ',
+      message: `ใบเบิก ${rejected.code} ถูกปฏิเสธ: ${rejected.rejectionReason ?? ''}`,
+      entity: 'Requisition',
+      entityId: rejected._id.toString(),
+    });
+    return rejected;
   }
 
   async cancel(id: string, userId: string): Promise<Requisition> {

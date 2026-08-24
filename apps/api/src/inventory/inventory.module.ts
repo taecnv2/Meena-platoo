@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { AuditLogsModule } from '../audit-logs/audit-logs.module';
 import { IngredientsModule } from '../ingredients/ingredients.module';
 import { StockMovementsModule } from '../stock-movements/stock-movements.module';
 import { ZonesModule } from '../zones/zones.module';
@@ -15,6 +16,7 @@ import { ZoneStock, ZoneStockSchema } from './schemas/zone-stock.schema';
     IngredientsModule,
     StockMovementsModule,
     ZonesModule,
+    AuditLogsModule,
   ],
   controllers: [InventoryController],
   providers: [InventoryService],

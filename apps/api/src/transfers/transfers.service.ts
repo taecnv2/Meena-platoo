@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { ClientSession, QueryFilter, Model } from 'mongoose';
 import { buildDateRangeQuery } from '../common/utils/date-range.util';
+import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { IngredientsService } from '../ingredients/ingredients.service';
 import { InventoryService } from '../inventory/inventory.service';
 import { CreateTransferDto } from './dto/create-transfer.dto';
@@ -29,6 +30,7 @@ export class TransfersService {
     private readonly transferModel: Model<TransferDocument>,
     private readonly inventoryService: InventoryService,
     private readonly ingredientsService: IngredientsService,
+    private readonly auditLogsService: AuditLogsService,
   ) {}
 
   findAll(filter: FindTransfersFilter): Promise<Transfer[]> {
@@ -97,8 +99,8 @@ export class TransfersService {
       }),
     );
 
-    return this.inventoryService.withTransaction(
-      async (session: ClientSession) => {
+    return this.inventoryService
+      .withTransaction(async (session: ClientSession) => {
         const [transferDoc] = await this.transferModel.create(
           [
             {
@@ -155,7 +157,20 @@ export class TransfersService {
         await transferDoc.save({ session });
 
         return transferDoc.toObject();
-      },
-    );
+      })
+      .then(async (transfer) => {
+        await this.auditLogsService.log({
+          userId: input.performedBy,
+          action: 'TRANSFER_COMPLETED',
+          entity: 'Transfer',
+          entityId: transfer._id.toString(),
+          after: {
+            fromZoneId: transfer.fromZoneId,
+            toZoneId: transfer.toZoneId,
+            items: transfer.items,
+          },
+        });
+        return transfer;
+      });
   }
 }

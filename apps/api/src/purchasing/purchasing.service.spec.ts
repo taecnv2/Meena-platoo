@@ -2,8 +2,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConflictException } from '@nestjs/common';
 import { getModelToken } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
+import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { IngredientsService } from '../ingredients/ingredients.service';
 import { InventoryService } from '../inventory/inventory.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { ZonesService } from '../zones/zones.service';
 import { PurchasingService } from './purchasing.service';
 import { PurchaseOrder } from './schemas/purchase-order.schema';
@@ -18,6 +20,8 @@ describe('PurchasingService', () => {
   let ingredientsService: { findByIdWithUnit: jest.Mock };
   let inventoryService: { withTransaction: jest.Mock; increment: jest.Mock };
   let zonesService: { getWarehouseZoneId: jest.Mock };
+  let auditLogsService: { log: jest.Mock };
+  let notificationsService: { create: jest.Mock };
 
   const ingredientId = new Types.ObjectId().toString();
   const supplierId = new Types.ObjectId().toString();
@@ -46,6 +50,8 @@ describe('PurchasingService', () => {
     zonesService = {
       getWarehouseZoneId: jest.fn().mockResolvedValue(warehouseZoneId),
     };
+    auditLogsService = { log: jest.fn().mockResolvedValue(undefined) };
+    notificationsService = { create: jest.fn().mockResolvedValue(undefined) };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -57,6 +63,8 @@ describe('PurchasingService', () => {
         { provide: IngredientsService, useValue: ingredientsService },
         { provide: InventoryService, useValue: inventoryService },
         { provide: ZonesService, useValue: zonesService },
+        { provide: AuditLogsService, useValue: auditLogsService },
+        { provide: NotificationsService, useValue: notificationsService },
       ],
     }).compile();
 
@@ -119,12 +127,22 @@ describe('PurchasingService', () => {
   describe('status transitions', () => {
     function mutableDoc(overrides: Record<string, unknown>) {
       const doc: Record<string, unknown> = {
+        _id: new Types.ObjectId(),
+        code: 'PO-mock',
         status: 'DRAFT',
         items: [],
+        createdBy: new Types.ObjectId(),
         save: jest.fn().mockResolvedValue(undefined),
         ...overrides,
       };
-      doc.toObject = jest.fn(() => ({ status: doc.status, items: doc.items }));
+      doc.toObject = jest.fn(() => ({
+        _id: doc._id,
+        code: doc.code,
+        status: doc.status,
+        items: doc.items,
+        createdBy: doc.createdBy,
+        rejectionReason: doc.rejectionReason ?? null,
+      }));
       return doc;
     }
 

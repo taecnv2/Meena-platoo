@@ -22,6 +22,15 @@ import {
   StockCount,
   StockCountDocument,
 } from '../stock-counts/schemas/stock-count.schema';
+import {
+  StockMovement,
+  StockMovementDocument,
+} from '../stock-movements/schemas/stock-movement.schema';
+import { Waste, WasteDocument } from '../waste/schemas/waste.schema';
+import {
+  PurchaseOrder,
+  PurchaseOrderDocument,
+} from '../purchasing/schemas/purchase-order.schema';
 
 export interface DashboardSummary {
   inventory: {
@@ -29,7 +38,14 @@ export interface DashboardSummary {
     lowStockCount: number;
     outOfStockCount: number;
   };
+  purchasing: {
+    today: number;
+    thisMonth: number;
+    changePercent: number;
+  };
   requisition: {
+    today: number;
+    thisMonth: number;
     requestsInRange: number;
     pendingRequests: number;
     topRequestingZone: {
@@ -37,6 +53,11 @@ export interface DashboardSummary {
       zoneName: string;
       count: number;
     } | null;
+  };
+  waste: {
+    today: number;
+    thisMonth: number;
+    changePercent: number;
   };
   operations: {
     pendingApprovals: number;
@@ -58,6 +79,12 @@ export class DashboardService {
     private readonly transferModel: Model<TransferDocument>,
     @InjectModel(StockCount.name)
     private readonly stockCountModel: Model<StockCountDocument>,
+    @InjectModel(StockMovement.name)
+    private readonly stockMovementModel: Model<StockMovementDocument>,
+    @InjectModel(Waste.name)
+    private readonly wasteModel: Model<WasteDocument>,
+    @InjectModel(PurchaseOrder.name)
+    private readonly purchaseOrderModel: Model<PurchaseOrderDocument>,
   ) {}
 
   async getOwnerSummary(
@@ -74,28 +101,47 @@ export class DashboardService {
     const [
       inventory,
       requestsInRange,
+      requestsToday,
+      requestsThisMonth,
       pendingRequests,
+      pendingPurchaseOrders,
+      pendingWaste,
       topZone,
       pendingTransfers,
       stockCountStatus,
+      purchasing,
+      waste,
     ] = await Promise.all([
       this.getInventorySummary(),
       this.requisitionModel.countDocuments({ createdAt: range }),
+      this.requisitionModel.countDocuments({ createdAt: this.todayRange(now) }),
+      this.requisitionModel.countDocuments({
+        createdAt: { $gte: defaultFrom, $lte: now },
+      }),
       this.requisitionModel.countDocuments({ status: 'PENDING' }),
+      this.purchaseOrderModel.countDocuments({ status: 'PENDING' }),
+      this.wasteModel.countDocuments({ status: 'PENDING_APPROVAL' }),
       this.getTopRequestingZone(range),
       this.transferModel.countDocuments({ status: 'PENDING' }),
       this.getStockCountStatus(range),
+      this.getPurchasingSummary(now, defaultFrom),
+      this.getWasteSummary(now, defaultFrom),
     ]);
 
     return {
       inventory,
+      purchasing,
       requisition: {
+        today: requestsToday,
+        thisMonth: requestsThisMonth,
         requestsInRange,
         pendingRequests,
         topRequestingZone: topZone,
       },
+      waste,
       operations: {
-        pendingApprovals: pendingRequests,
+        pendingApprovals:
+          pendingRequests + pendingPurchaseOrders + pendingWaste,
         pendingTransfers,
         stockCountStatus,
       },
@@ -202,8 +248,99 @@ export class DashboardService {
     ]);
     return Object.fromEntries(results.map((r) => [r._id, r.count]));
   }
+
+  private async getPurchasingSummary(
+    now: Date,
+    firstOfMonth: Date,
+  ): Promise<DashboardSummary['purchasing']> {
+    const [today, thisMonth, lastMonthElapsed] = await Promise.all([
+      this.sumMovementCost(
+        { referenceType: 'PURCHASE_ORDER', movementType: 'STOCK_IN' },
+        this.todayRange(now),
+      ),
+      this.sumMovementCost(
+        { referenceType: 'PURCHASE_ORDER', movementType: 'STOCK_IN' },
+        { $gte: firstOfMonth, $lte: now },
+      ),
+      this.sumMovementCost(
+        { referenceType: 'PURCHASE_ORDER', movementType: 'STOCK_IN' },
+        this.lastMonthElapsedRange(now, firstOfMonth),
+      ),
+    ]);
+    return {
+      today: round2(today),
+      thisMonth: round2(thisMonth),
+      changePercent: percentChange(thisMonth, lastMonthElapsed),
+    };
+  }
+
+  private async getWasteSummary(
+    now: Date,
+    firstOfMonth: Date,
+  ): Promise<DashboardSummary['waste']> {
+    const [today, thisMonth, lastMonthElapsed] = await Promise.all([
+      this.sumMovementCost({ movementType: 'WASTE' }, this.todayRange(now)),
+      this.sumMovementCost(
+        { movementType: 'WASTE' },
+        { $gte: firstOfMonth, $lte: now },
+      ),
+      this.sumMovementCost(
+        { movementType: 'WASTE' },
+        this.lastMonthElapsedRange(now, firstOfMonth),
+      ),
+    ]);
+    return {
+      today: round2(today),
+      thisMonth: round2(thisMonth),
+      changePercent: percentChange(thisMonth, lastMonthElapsed),
+    };
+  }
+
+  private async sumMovementCost(
+    match: Record<string, unknown>,
+    createdAt: { $gte?: Date; $lte?: Date },
+  ): Promise<number> {
+    const [result] = await this.stockMovementModel.aggregate<{
+      total: number;
+    }>([
+      { $match: { ...match, createdAt } },
+      { $group: { _id: null, total: { $sum: '$totalCost' } } },
+    ]);
+    return result?.total ?? 0;
+  }
+
+  private todayRange(now: Date): { $gte: Date; $lte: Date } {
+    return {
+      $gte: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
+      $lte: now,
+    };
+  }
+
+  /** Last month, cut off at the same elapsed duration as "this month so far" -- for a fair change%. */
+  private lastMonthElapsedRange(
+    now: Date,
+    firstOfMonth: Date,
+  ): { $gte: Date; $lte: Date } {
+    const firstOfLastMonth = new Date(
+      firstOfMonth.getFullYear(),
+      firstOfMonth.getMonth() - 1,
+      1,
+    );
+    const elapsedMs = now.getTime() - firstOfMonth.getTime();
+    return {
+      $gte: firstOfLastMonth,
+      $lte: new Date(firstOfLastMonth.getTime() + elapsedMs),
+    };
+  }
 }
 
 function round2(value: number): number {
   return Math.round(value * 100) / 100;
+}
+
+function percentChange(current: number, previous: number): number {
+  if (previous === 0) {
+    return current === 0 ? 0 : 100;
+  }
+  return round2(((current - previous) / previous) * 100);
 }
