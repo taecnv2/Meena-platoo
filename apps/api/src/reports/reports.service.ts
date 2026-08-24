@@ -7,6 +7,10 @@ import {
   IngredientDocument,
 } from '../ingredients/schemas/ingredient.schema';
 import {
+  PurchaseOrder,
+  PurchaseOrderDocument,
+} from '../purchasing/schemas/purchase-order.schema';
+import {
   Requisition,
   RequisitionDocument,
 } from '../requisitions/schemas/requisition.schema';
@@ -15,10 +19,15 @@ import {
   StockMovementDocument,
 } from '../stock-movements/schemas/stock-movement.schema';
 import {
+  Supplier,
+  SupplierDocument,
+} from '../suppliers/schemas/supplier.schema';
+import {
   ZoneStock,
   ZoneStockDocument,
 } from '../inventory/schemas/zone-stock.schema';
 import { User, UserDocument } from '../users/schemas/user.schema';
+import { Waste, WasteDocument } from '../waste/schemas/waste.schema';
 import { Zone, ZoneDocument } from '../zones/schemas/zone.schema';
 
 export const COMPARISON_PERIOD_TYPES = [
@@ -70,6 +79,99 @@ interface FlowMetrics {
   stockValueChange: number;
 }
 
+export interface InventoryReportRow {
+  ingredientId: string;
+  ingredientName: string;
+  unit: string;
+  totalQuantity: number;
+  totalValue: number;
+  minimumStock: number;
+  maximumStock: number;
+  stockStatus: 'OUT_OF_STOCK' | 'LOW_STOCK' | 'NORMAL';
+  movementInQuantity: number;
+  movementInValue: number;
+  movementOutQuantity: number;
+  movementOutValue: number;
+}
+
+export interface PurchaseReportSupplierRow {
+  supplierId: string;
+  supplierName: string;
+  count: number;
+  value: number;
+}
+
+export interface PurchaseReportIngredientRow {
+  ingredientId: string;
+  ingredientName: string;
+  quantity: number;
+  value: number;
+}
+
+export interface PurchaseReport {
+  totals: {
+    numberOfOrders: number;
+    totalOrderedValue: number;
+    totalReceivedValue: number;
+  };
+  bySupplier: PurchaseReportSupplierRow[];
+  byIngredient: PurchaseReportIngredientRow[];
+  trend: Array<{ date: string; value: number }>;
+}
+
+export interface WasteReportReasonRow {
+  reason: string;
+  quantity: number;
+  value: number;
+}
+
+export interface WasteReportZoneRow {
+  zoneId: string;
+  zoneName: string;
+  quantity: number;
+  value: number;
+}
+
+export interface WasteReportIngredientRow {
+  ingredientId: string;
+  ingredientName: string;
+  quantity: number;
+  value: number;
+}
+
+export interface WasteReport {
+  totals: {
+    numberOfRecords: number;
+    totalQuantity: number;
+    totalValue: number;
+    pendingCount: number;
+  };
+  byReason: WasteReportReasonRow[];
+  byZone: WasteReportZoneRow[];
+  byIngredient: WasteReportIngredientRow[];
+  trend: Array<{ date: string; value: number }>;
+}
+
+export interface CostReportIngredientRow {
+  ingredientId: string;
+  ingredientName: string;
+  cost: number;
+}
+
+export interface CostReportZoneRow {
+  zoneId: string;
+  zoneName: string;
+  cost: number;
+}
+
+export interface CostReport {
+  totalCost: number;
+  byIngredient: CostReportIngredientRow[];
+  byZone: CostReportZoneRow[];
+  byMovementType: Array<{ movementType: string; cost: number }>;
+  trend: Array<{ date: string; cost: number }>;
+}
+
 @Injectable()
 export class ReportsService {
   constructor(
@@ -85,6 +187,12 @@ export class ReportsService {
     private readonly stockMovementModel: Model<StockMovementDocument>,
     @InjectModel(User.name)
     private readonly userModel: Model<UserDocument>,
+    @InjectModel(PurchaseOrder.name)
+    private readonly purchaseOrderModel: Model<PurchaseOrderDocument>,
+    @InjectModel(Supplier.name)
+    private readonly supplierModel: Model<SupplierDocument>,
+    @InjectModel(Waste.name)
+    private readonly wasteModel: Model<WasteDocument>,
   ) {}
 
   async getZoneReport(
@@ -382,6 +490,531 @@ export class ReportsService {
       trend: facetResult.trend.map((row) => ({
         date: row._id,
         count: row.count,
+      })),
+    };
+  }
+
+  async getInventoryReport(
+    dateFrom?: string,
+    dateTo?: string,
+    zoneId?: string,
+  ): Promise<InventoryReportRow[]> {
+    const range = this.resolveActivityRange(dateFrom, dateTo);
+    const stockMatch: Record<string, unknown> = {};
+    const movementZoneFilter: Record<string, unknown> = {};
+    if (zoneId) {
+      const zoneObjectId = new Types.ObjectId(zoneId);
+      stockMatch.zoneId = zoneObjectId;
+      movementZoneFilter.zoneId = zoneObjectId;
+    }
+
+    const [
+      stockByIngredient,
+      movementInByIngredient,
+      movementOutByIngredient,
+      ingredients,
+    ] = await Promise.all([
+      this.zoneStockModel.aggregate<{
+        _id: Types.ObjectId;
+        quantity: number;
+        value: number;
+      }>([
+        { $match: stockMatch },
+        {
+          $lookup: {
+            from: 'ingredients',
+            localField: 'ingredientId',
+            foreignField: '_id',
+            as: 'ingredient',
+          },
+        },
+        { $unwind: '$ingredient' },
+        {
+          $group: {
+            _id: '$ingredientId',
+            quantity: { $sum: '$quantity' },
+            value: {
+              $sum: { $multiply: ['$quantity', '$ingredient.defaultCost'] },
+            },
+          },
+        },
+      ]),
+      this.stockMovementModel.aggregate<{
+        _id: Types.ObjectId;
+        quantity: number;
+        value: number;
+      }>([
+        {
+          $match: {
+            movementType: { $in: ['STOCK_IN', 'TRANSFER_IN', 'ADJUSTMENT_IN'] },
+            createdAt: { $gte: range.from, $lte: range.to },
+            ...movementZoneFilter,
+          },
+        },
+        {
+          $group: {
+            _id: '$ingredientId',
+            quantity: { $sum: '$quantity' },
+            value: { $sum: '$totalCost' },
+          },
+        },
+      ]),
+      this.stockMovementModel.aggregate<{
+        _id: Types.ObjectId;
+        quantity: number;
+        value: number;
+      }>([
+        {
+          $match: {
+            movementType: {
+              $in: ['STOCK_OUT', 'TRANSFER_OUT', 'ADJUSTMENT_OUT', 'WASTE'],
+            },
+            createdAt: { $gte: range.from, $lte: range.to },
+            ...movementZoneFilter,
+          },
+        },
+        {
+          $group: {
+            _id: '$ingredientId',
+            quantity: { $sum: '$quantity' },
+            value: { $sum: '$totalCost' },
+          },
+        },
+      ]),
+      this.ingredientModel
+        .find({ status: 'ACTIVE' })
+        .populate<{ baseUnitId: { code: string } | null }>('baseUnitId', 'code')
+        .lean(),
+    ]);
+
+    const stockMap = toMap(stockByIngredient);
+    const movementInMap = toMap(movementInByIngredient);
+    const movementOutMap = toMap(movementOutByIngredient);
+
+    return ingredients.map((ingredient) => {
+      const id = ingredient._id.toString();
+      const stock = stockMap.get(id);
+      const movementIn = movementInMap.get(id);
+      const movementOut = movementOutMap.get(id);
+      const totalQuantity = round2(stock?.quantity ?? 0);
+      const stockStatus: InventoryReportRow['stockStatus'] =
+        totalQuantity <= 0
+          ? 'OUT_OF_STOCK'
+          : totalQuantity < ingredient.minimumStock
+            ? 'LOW_STOCK'
+            : 'NORMAL';
+      return {
+        ingredientId: id,
+        ingredientName: ingredient.name,
+        unit: ingredient.baseUnitId?.code ?? '-',
+        totalQuantity,
+        totalValue: round2(stock?.value ?? 0),
+        minimumStock: ingredient.minimumStock,
+        maximumStock: ingredient.maximumStock,
+        stockStatus,
+        movementInQuantity: round2(movementIn?.quantity ?? 0),
+        movementInValue: round2(movementIn?.value ?? 0),
+        movementOutQuantity: round2(movementOut?.quantity ?? 0),
+        movementOutValue: round2(movementOut?.value ?? 0),
+      };
+    });
+  }
+
+  async getPurchaseReport(
+    dateFrom?: string,
+    dateTo?: string,
+    supplierId?: string,
+  ): Promise<PurchaseReport> {
+    const range = this.resolveActivityRange(dateFrom, dateTo);
+    const orderMatch: Record<string, unknown> = {
+      createdAt: { $gte: range.from, $lte: range.to },
+      status: { $nin: ['CANCELLED', 'REJECTED'] },
+    };
+    if (supplierId) {
+      orderMatch.supplierId = new Types.ObjectId(supplierId);
+    }
+
+    const movementMatch: Record<string, unknown> = {
+      referenceType: 'PURCHASE_ORDER',
+      movementType: 'STOCK_IN',
+      createdAt: { $gte: range.from, $lte: range.to },
+    };
+    if (supplierId) {
+      const supplierOrders = await this.purchaseOrderModel
+        .find({ supplierId: new Types.ObjectId(supplierId) })
+        .select('_id')
+        .lean();
+      movementMatch.referenceId = { $in: supplierOrders.map((o) => o._id) };
+    }
+
+    const [[facetResult], receivedResult, trendResult, ingredients, suppliers] =
+      await Promise.all([
+        this.purchaseOrderModel.aggregate<{
+          totals: Array<{ numberOfOrders: number; totalOrderedValue: number }>;
+          bySupplier: Array<{
+            _id: Types.ObjectId;
+            count: number;
+            value: number;
+          }>;
+          byIngredient: Array<{
+            _id: Types.ObjectId;
+            quantity: number;
+            value: number;
+          }>;
+        }>([
+          { $match: orderMatch },
+          {
+            $facet: {
+              totals: [
+                { $unwind: '$items' },
+                {
+                  $group: {
+                    _id: null,
+                    numberOfOrders: { $addToSet: '$_id' },
+                    totalOrderedValue: {
+                      $sum: {
+                        $multiply: [
+                          '$items.orderedQuantity',
+                          '$items.unitCost',
+                        ],
+                      },
+                    },
+                  },
+                },
+                {
+                  $project: {
+                    _id: 0,
+                    numberOfOrders: { $size: '$numberOfOrders' },
+                    totalOrderedValue: 1,
+                  },
+                },
+              ],
+              bySupplier: [
+                { $unwind: '$items' },
+                {
+                  $group: {
+                    _id: '$supplierId',
+                    count: { $addToSet: '$_id' },
+                    value: {
+                      $sum: {
+                        $multiply: [
+                          '$items.orderedQuantity',
+                          '$items.unitCost',
+                        ],
+                      },
+                    },
+                  },
+                },
+                { $project: { count: { $size: '$count' }, value: 1 } },
+                { $sort: { value: -1 } },
+              ],
+              byIngredient: [
+                { $unwind: '$items' },
+                {
+                  $group: {
+                    _id: '$items.ingredientId',
+                    quantity: { $sum: '$items.orderedQuantity' },
+                    value: {
+                      $sum: {
+                        $multiply: [
+                          '$items.orderedQuantity',
+                          '$items.unitCost',
+                        ],
+                      },
+                    },
+                  },
+                },
+                { $sort: { value: -1 } },
+                { $limit: 10 },
+              ],
+            },
+          },
+        ]),
+        this.stockMovementModel.aggregate<{ total: number }>([
+          { $match: movementMatch },
+          { $group: { _id: null, total: { $sum: '$totalCost' } } },
+        ]),
+        this.stockMovementModel.aggregate<{ _id: string; value: number }>([
+          { $match: movementMatch },
+          {
+            $group: {
+              _id: {
+                $dateToString: { format: '%Y-%m-%d', date: '$createdAt' },
+              },
+              value: { $sum: '$totalCost' },
+            },
+          },
+          { $sort: { _id: 1 } },
+        ]),
+        this.ingredientModel.find().select('name').lean(),
+        this.supplierModel.find().select('name').lean(),
+      ]);
+
+    const ingredientNames = new Map(
+      ingredients.map((i) => [i._id.toString(), i.name]),
+    );
+    const supplierNames = new Map(
+      suppliers.map((s) => [s._id.toString(), s.name]),
+    );
+    const totals = facetResult.totals[0] ?? {
+      numberOfOrders: 0,
+      totalOrderedValue: 0,
+    };
+
+    return {
+      totals: {
+        numberOfOrders: totals.numberOfOrders,
+        totalOrderedValue: round2(totals.totalOrderedValue),
+        totalReceivedValue: round2(receivedResult[0]?.total ?? 0),
+      },
+      bySupplier: facetResult.bySupplier.map((row) => ({
+        supplierId: row._id.toString(),
+        supplierName: supplierNames.get(row._id.toString()) ?? '-',
+        count: row.count,
+        value: round2(row.value),
+      })),
+      byIngredient: facetResult.byIngredient.map((row) => ({
+        ingredientId: row._id.toString(),
+        ingredientName: ingredientNames.get(row._id.toString()) ?? '-',
+        quantity: round2(row.quantity),
+        value: round2(row.value),
+      })),
+      trend: trendResult.map((row) => ({
+        date: row._id,
+        value: round2(row.value),
+      })),
+    };
+  }
+
+  async getWasteReport(
+    dateFrom?: string,
+    dateTo?: string,
+    zoneId?: string,
+  ): Promise<WasteReport> {
+    const range = this.resolveActivityRange(dateFrom, dateTo);
+    const approvedMatch: Record<string, unknown> = {
+      status: 'APPROVED',
+      createdAt: { $gte: range.from, $lte: range.to },
+    };
+    const pendingMatch: Record<string, unknown> = {
+      status: 'PENDING_APPROVAL',
+      createdAt: { $gte: range.from, $lte: range.to },
+    };
+    if (zoneId) {
+      const zoneObjectId = new Types.ObjectId(zoneId);
+      approvedMatch.zoneId = zoneObjectId;
+      pendingMatch.zoneId = zoneObjectId;
+    }
+
+    const [[facetResult], pendingCount, ingredients, zones] = await Promise.all(
+      [
+        this.wasteModel.aggregate<{
+          totals: Array<{
+            numberOfRecords: number;
+            totalQuantity: number;
+            totalValue: number;
+          }>;
+          byReason: Array<{ _id: string; quantity: number; value: number }>;
+          byZone: Array<{
+            _id: Types.ObjectId;
+            quantity: number;
+            value: number;
+          }>;
+          byIngredient: Array<{
+            _id: Types.ObjectId;
+            quantity: number;
+            value: number;
+          }>;
+          trend: Array<{ _id: string; value: number }>;
+        }>([
+          { $match: approvedMatch },
+          {
+            $facet: {
+              totals: [
+                {
+                  $group: {
+                    _id: null,
+                    numberOfRecords: { $sum: 1 },
+                    totalQuantity: { $sum: '$quantity' },
+                    totalValue: {
+                      $sum: { $multiply: ['$quantity', '$unitCost'] },
+                    },
+                  },
+                },
+              ],
+              byReason: [
+                {
+                  $group: {
+                    _id: '$reason',
+                    quantity: { $sum: '$quantity' },
+                    value: { $sum: { $multiply: ['$quantity', '$unitCost'] } },
+                  },
+                },
+              ],
+              byZone: [
+                {
+                  $group: {
+                    _id: '$zoneId',
+                    quantity: { $sum: '$quantity' },
+                    value: { $sum: { $multiply: ['$quantity', '$unitCost'] } },
+                  },
+                },
+              ],
+              byIngredient: [
+                {
+                  $group: {
+                    _id: '$ingredientId',
+                    quantity: { $sum: '$quantity' },
+                    value: { $sum: { $multiply: ['$quantity', '$unitCost'] } },
+                  },
+                },
+                { $sort: { value: -1 } },
+                { $limit: 10 },
+              ],
+              trend: [
+                {
+                  $group: {
+                    _id: {
+                      $dateToString: { format: '%Y-%m-%d', date: '$createdAt' },
+                    },
+                    value: { $sum: { $multiply: ['$quantity', '$unitCost'] } },
+                  },
+                },
+                { $sort: { _id: 1 } },
+              ],
+            },
+          },
+        ]),
+        this.wasteModel.countDocuments(pendingMatch),
+        this.ingredientModel.find().select('name').lean(),
+        this.zoneModel.find().select('name').lean(),
+      ],
+    );
+
+    const ingredientNames = new Map(
+      ingredients.map((i) => [i._id.toString(), i.name]),
+    );
+    const zoneNames = new Map(zones.map((z) => [z._id.toString(), z.name]));
+    const totals = facetResult.totals[0] ?? {
+      numberOfRecords: 0,
+      totalQuantity: 0,
+      totalValue: 0,
+    };
+
+    return {
+      totals: {
+        numberOfRecords: totals.numberOfRecords,
+        totalQuantity: round2(totals.totalQuantity),
+        totalValue: round2(totals.totalValue),
+        pendingCount,
+      },
+      byReason: facetResult.byReason.map((row) => ({
+        reason: row._id,
+        quantity: round2(row.quantity),
+        value: round2(row.value),
+      })),
+      byZone: facetResult.byZone.map((row) => ({
+        zoneId: row._id.toString(),
+        zoneName: zoneNames.get(row._id.toString()) ?? '-',
+        quantity: round2(row.quantity),
+        value: round2(row.value),
+      })),
+      byIngredient: facetResult.byIngredient.map((row) => ({
+        ingredientId: row._id.toString(),
+        ingredientName: ingredientNames.get(row._id.toString()) ?? '-',
+        quantity: round2(row.quantity),
+        value: round2(row.value),
+      })),
+      trend: facetResult.trend.map((row) => ({
+        date: row._id,
+        value: round2(row.value),
+      })),
+    };
+  }
+
+  async getCostReport(
+    dateFrom?: string,
+    dateTo?: string,
+    zoneId?: string,
+  ): Promise<CostReport> {
+    const range = this.resolveActivityRange(dateFrom, dateTo);
+    const match: Record<string, unknown> = {
+      movementType: { $in: ['STOCK_OUT', 'WASTE', 'ADJUSTMENT_OUT'] },
+      createdAt: { $gte: range.from, $lte: range.to },
+    };
+    if (zoneId) {
+      match.zoneId = new Types.ObjectId(zoneId);
+    }
+
+    const [[facetResult], ingredients, zones] = await Promise.all([
+      this.stockMovementModel.aggregate<{
+        total: Array<{ total: number }>;
+        byIngredient: Array<{ _id: Types.ObjectId; cost: number }>;
+        byZone: Array<{ _id: Types.ObjectId; cost: number }>;
+        byMovementType: Array<{ _id: string; cost: number }>;
+        trend: Array<{ _id: string; cost: number }>;
+      }>([
+        { $match: match },
+        {
+          $facet: {
+            total: [{ $group: { _id: null, total: { $sum: '$totalCost' } } }],
+            byIngredient: [
+              {
+                $group: { _id: '$ingredientId', cost: { $sum: '$totalCost' } },
+              },
+              { $sort: { cost: -1 } },
+              { $limit: 10 },
+            ],
+            byZone: [
+              { $group: { _id: '$zoneId', cost: { $sum: '$totalCost' } } },
+            ],
+            byMovementType: [
+              {
+                $group: { _id: '$movementType', cost: { $sum: '$totalCost' } },
+              },
+            ],
+            trend: [
+              {
+                $group: {
+                  _id: {
+                    $dateToString: { format: '%Y-%m-%d', date: '$createdAt' },
+                  },
+                  cost: { $sum: '$totalCost' },
+                },
+              },
+              { $sort: { _id: 1 } },
+            ],
+          },
+        },
+      ]),
+      this.ingredientModel.find().select('name').lean(),
+      this.zoneModel.find().select('name').lean(),
+    ]);
+
+    const ingredientNames = new Map(
+      ingredients.map((i) => [i._id.toString(), i.name]),
+    );
+    const zoneNames = new Map(zones.map((z) => [z._id.toString(), z.name]));
+
+    return {
+      totalCost: round2(facetResult.total[0]?.total ?? 0),
+      byIngredient: facetResult.byIngredient.map((row) => ({
+        ingredientId: row._id.toString(),
+        ingredientName: ingredientNames.get(row._id.toString()) ?? '-',
+        cost: round2(row.cost),
+      })),
+      byZone: facetResult.byZone.map((row) => ({
+        zoneId: row._id.toString(),
+        zoneName: zoneNames.get(row._id.toString()) ?? '-',
+        cost: round2(row.cost),
+      })),
+      byMovementType: facetResult.byMovementType.map((row) => ({
+        movementType: row._id,
+        cost: round2(row.cost),
+      })),
+      trend: facetResult.trend.map((row) => ({
+        date: row._id,
+        cost: round2(row.cost),
       })),
     };
   }

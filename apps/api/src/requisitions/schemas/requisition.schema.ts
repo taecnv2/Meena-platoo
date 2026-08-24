@@ -68,7 +68,12 @@ export class Requisition {
   })
   toZoneId!: Types.ObjectId;
 
-  @Prop({ enum: REQUISITION_STATUSES, default: 'PENDING', index: true })
+  @Prop({
+    type: String,
+    enum: REQUISITION_STATUSES,
+    default: 'PENDING',
+    index: true,
+  })
   status!: RequisitionStatus;
 
   @Prop({ type: [RequisitionItemSchema], required: true })
