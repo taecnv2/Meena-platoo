@@ -42,7 +42,12 @@ export class Transfer {
   })
   toZoneId!: Types.ObjectId;
 
-  @Prop({ enum: TRANSFER_STATUSES, default: 'PENDING', index: true })
+  @Prop({
+    type: String,
+    enum: TRANSFER_STATUSES,
+    default: 'PENDING',
+    index: true,
+  })
   status!: TransferStatus;
 
   @Prop({ type: [TransferItemSchema], required: true })

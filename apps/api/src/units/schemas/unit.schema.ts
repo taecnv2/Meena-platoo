@@ -20,7 +20,7 @@ export class Unit {
   @Prop({ required: true, index: true, trim: true })
   name!: string;
 
-  @Prop({ enum: UNIT_TYPES, required: true })
+  @Prop({ type: String, enum: UNIT_TYPES, required: true })
   type!: UnitType;
 
   /** Multiplier relative to the base unit of the same type. Real conversion math is deferred past P0. */

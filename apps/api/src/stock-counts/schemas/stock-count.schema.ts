@@ -51,6 +51,7 @@ export class StockCount {
   zoneId!: Types.ObjectId;
 
   @Prop({
+    type: String,
     enum: STOCK_COUNT_STATUSES,
     default: 'PENDING_APPROVAL',
     index: true,
