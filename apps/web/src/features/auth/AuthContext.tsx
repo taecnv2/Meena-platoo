@@ -9,6 +9,7 @@ interface AuthContextValue {
   isAuthenticated: boolean
   login: (username: string, password: string) => Promise<AuthUser>
   logout: () => Promise<void>
+  completePasswordChange: () => void
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -59,8 +60,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  const completePasswordChange = useCallback(() => {
+    setUser((prev) => (prev ? { ...prev, mustChangePassword: false } : prev))
+  }, [])
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, isAuthenticated: user !== null, login, logout }}>
+    <AuthContext.Provider
+      value={{ user, isLoading, isAuthenticated: user !== null, login, logout, completePasswordChange }}
+    >
       {children}
     </AuthContext.Provider>
   )

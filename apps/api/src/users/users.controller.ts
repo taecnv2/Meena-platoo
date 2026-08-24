@@ -24,6 +24,12 @@ export class UsersController {
     return this.usersService.findAll();
   }
 
+  @RequirePermission(PERMISSION_CODES.USERS_CREATE)
+  @Get('default-password')
+  getDefaultPassword(): { password: string } {
+    return { password: this.usersService.getDefaultPassword() };
+  }
+
   @RequirePermission(PERMISSION_CODES.USERS_READ)
   @Get(':id')
   findById(@Param('id') id: string): Promise<SafeUser> {

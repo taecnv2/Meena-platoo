@@ -11,6 +11,7 @@ export interface AppConfig {
   refreshCookieName: string;
   bcryptSaltRounds: number;
   corsOrigin: string;
+  defaultUserPassword: string;
   seed: {
     ownerUsername: string;
     ownerEmail: string;
@@ -32,6 +33,7 @@ export default (): AppConfig => ({
   refreshCookieName: process.env.REFRESH_COOKIE_NAME ?? 'meena_refresh',
   bcryptSaltRounds: parseInt(process.env.BCRYPT_SALT_ROUNDS ?? '10', 10),
   corsOrigin: process.env.CORS_ORIGIN ?? 'http://localhost:5173',
+  defaultUserPassword: process.env.DEFAULT_USER_PASSWORD ?? 'Meena1234!',
   seed: {
     ownerUsername: process.env.SEED_OWNER_USERNAME ?? 'owner',
     ownerEmail: process.env.SEED_OWNER_EMAIL ?? 'owner@meenaplatoo.local',

@@ -8,6 +8,7 @@ export interface RequestUser {
   permissions: string[];
   zoneIds: string[];
   isSuperScope: boolean;
+  mustChangePassword: boolean;
 }
 
 export interface AuthenticatedRequest extends Request {

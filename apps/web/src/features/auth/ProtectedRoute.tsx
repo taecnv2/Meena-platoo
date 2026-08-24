@@ -24,6 +24,10 @@ export function ProtectedRoute({ permission }: ProtectedRouteProps) {
     return <Navigate to="/login" replace state={{ from: location }} />
   }
 
+  if (user?.mustChangePassword) {
+    return <Navigate to="/change-password" replace />
+  }
+
   const hasPermission = !permission || user?.isSuperScope || user?.permissions.includes(permission)
 
   return <AppLayout>{hasPermission ? <Outlet /> : <ForbiddenView />}</AppLayout>

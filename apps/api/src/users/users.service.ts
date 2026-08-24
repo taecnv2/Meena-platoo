@@ -1,7 +1,9 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import * as bcrypt from 'bcrypt';
@@ -80,6 +82,7 @@ export class UsersService {
       permissions: user.roleId.permissions,
       zoneIds: user.zoneIds.map((zoneId) => zoneId.toString()),
       isSuperScope: user.roleId.allZoneAccess,
+      mustChangePassword: user.mustChangePassword,
       status: user.status,
     };
   }
@@ -97,7 +100,7 @@ export class UsersService {
       throw new ConflictException('มีชื่อผู้ใช้งานหรืออีเมลนี้อยู่แล้ว');
     }
     const passwordHash = await bcrypt.hash(
-      dto.password,
+      this.configService.get('defaultUserPassword', { infer: true }),
       this.configService.get('bcryptSaltRounds', { infer: true }),
     );
     const created = await this.userModel.create({
@@ -108,6 +111,7 @@ export class UsersService {
       roleId: dto.roleId,
       zoneIds: dto.zoneIds ?? [],
       status: dto.status ?? 'ACTIVE',
+      mustChangePassword: true,
     });
     return {
       _id: created._id,
@@ -150,11 +154,44 @@ export class UsersService {
       this.configService.get('bcryptSaltRounds', { infer: true }),
     );
     const updated = await this.userModel
-      .findByIdAndUpdate(id, { passwordHash })
+      .findByIdAndUpdate(id, { passwordHash, mustChangePassword: true })
       .lean();
     if (!updated) {
       throw new NotFoundException('ไม่พบผู้ใช้งานนี้');
     }
+  }
+
+  async changePassword(
+    id: string,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<void> {
+    const user = await this.userModel
+      .findById(id)
+      .select('+passwordHash')
+      .lean<(User & { _id: Types.ObjectId }) | null>();
+    if (!user) {
+      throw new NotFoundException('ไม่พบผู้ใช้งานนี้');
+    }
+    const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!valid) {
+      throw new UnauthorizedException('รหัสผ่านปัจจุบันไม่ถูกต้อง');
+    }
+    if (newPassword === currentPassword) {
+      throw new BadRequestException('รหัสผ่านใหม่ต้องไม่ซ้ำกับรหัสผ่านเดิม');
+    }
+    const passwordHash = await bcrypt.hash(
+      newPassword,
+      this.configService.get('bcryptSaltRounds', { infer: true }),
+    );
+    await this.userModel.findByIdAndUpdate(id, {
+      passwordHash,
+      mustChangePassword: false,
+    });
+  }
+
+  getDefaultPassword(): string {
+    return this.configService.get('defaultUserPassword', { infer: true });
   }
 
   async touchLastLogin(id: string): Promise<void> {

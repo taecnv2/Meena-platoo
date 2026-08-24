@@ -41,6 +41,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       permissions: authContext.permissions,
       zoneIds: authContext.zoneIds,
       isSuperScope: authContext.isSuperScope,
+      mustChangePassword: authContext.mustChangePassword,
     };
   }
 }

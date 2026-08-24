@@ -1,5 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { getModelToken } from '@nestjs/mongoose';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
@@ -9,6 +14,7 @@ import { User } from './schemas/user.schema';
 
 jest.mock('bcrypt', () => ({
   hash: jest.fn().mockResolvedValue('hashed-password'),
+  compare: jest.fn(),
 }));
 
 /** Chainable query mock: .select()/.populate() return itself, terminal .lean() resolves. */
@@ -44,7 +50,11 @@ describe('UsersService', () => {
       findByIdAndUpdate: jest.fn(() => queryMock(null)),
       updateOne: jest.fn().mockResolvedValue(undefined),
     };
-    configService = { get: jest.fn().mockReturnValue(10) };
+    configService = {
+      get: jest.fn((key: string) =>
+        key === 'defaultUserPassword' ? 'Meena1234!' : 10,
+      ),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -66,6 +76,7 @@ describe('UsersService', () => {
           username: 'somchai',
           status: 'ACTIVE',
           zoneIds: [zoneId],
+          mustChangePassword: false,
           roleId: {
             _id: roleId,
             name: 'KITCHEN_STAFF',
@@ -85,6 +96,7 @@ describe('UsersService', () => {
         permissions: ['requisition.create'],
         zoneIds: [zoneId.toString()],
         isSuperScope: false,
+        mustChangePassword: false,
         status: 'ACTIVE',
       });
     });
@@ -107,14 +119,13 @@ describe('UsersService', () => {
           username: 'Somchai',
           email: 'Somchai@Example.com',
           name: 'สมชาย',
-          password: 'secret1234',
           roleId: roleId.toString(),
         }),
       ).rejects.toThrow(ConflictException);
       expect(userModel.create).not.toHaveBeenCalled();
     });
 
-    it('lowercases username/email, hashes the password with the configured salt rounds, and defaults status/zoneIds', async () => {
+    it('lowercases username/email, hashes the configured default password, defaults status/zoneIds, and forces a password change', async () => {
       userModel.create.mockResolvedValueOnce({
         _id: userId,
         username: 'somchai',
@@ -130,11 +141,10 @@ describe('UsersService', () => {
         username: 'Somchai',
         email: 'Somchai@Example.com',
         name: 'สมชาย',
-        password: 'secret1234',
         roleId: roleId.toString(),
       });
 
-      expect(bcrypt.hash).toHaveBeenCalledWith('secret1234', 10);
+      expect(bcrypt.hash).toHaveBeenCalledWith('Meena1234!', 10);
       expect(userModel.create).toHaveBeenCalledWith(
         expect.objectContaining({
           username: 'somchai',
@@ -142,6 +152,7 @@ describe('UsersService', () => {
           passwordHash: 'hashed-password',
           zoneIds: [],
           status: 'ACTIVE',
+          mustChangePassword: true,
         }),
       );
       expect(result).not.toHaveProperty('passwordHash');
@@ -182,7 +193,7 @@ describe('UsersService', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('hashes the new password and updates the user', async () => {
+    it('hashes the new password, updates the user, and forces a password change on next login', async () => {
       userModel.findByIdAndUpdate.mockReturnValueOnce(
         queryMock({ _id: userId }),
       );
@@ -194,8 +205,68 @@ describe('UsersService', () => {
         userId.toString(),
         {
           passwordHash: 'hashed-password',
+          mustChangePassword: true,
         },
       );
+    });
+  });
+
+  describe('changePassword', () => {
+    it('throws NotFoundException when the user does not exist', async () => {
+      userModel.findById.mockReturnValueOnce(queryMock(null));
+
+      await expect(
+        service.changePassword(userId.toString(), 'old12345', 'new12345'),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws UnauthorizedException when the current password is wrong', async () => {
+      userModel.findById.mockReturnValueOnce(
+        queryMock({ _id: userId, passwordHash: 'stored-hash' }),
+      );
+      (bcrypt.compare as jest.Mock).mockResolvedValueOnce(false);
+
+      await expect(
+        service.changePassword(userId.toString(), 'wrong-pass', 'new12345'),
+      ).rejects.toThrow(UnauthorizedException);
+      expect(userModel.findByIdAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('throws BadRequestException when the new password matches the current one', async () => {
+      userModel.findById.mockReturnValueOnce(
+        queryMock({ _id: userId, passwordHash: 'stored-hash' }),
+      );
+      (bcrypt.compare as jest.Mock).mockResolvedValueOnce(true);
+
+      await expect(
+        service.changePassword(userId.toString(), 'same1234', 'same1234'),
+      ).rejects.toThrow(BadRequestException);
+      expect(userModel.findByIdAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('hashes the new password, clears the forced-change flag, and updates the user', async () => {
+      userModel.findById.mockReturnValueOnce(
+        queryMock({ _id: userId, passwordHash: 'stored-hash' }),
+      );
+      (bcrypt.compare as jest.Mock).mockResolvedValueOnce(true);
+
+      await service.changePassword(userId.toString(), 'old12345', 'new12345');
+
+      expect(bcrypt.compare).toHaveBeenCalledWith('old12345', 'stored-hash');
+      expect(bcrypt.hash).toHaveBeenCalledWith('new12345', 10);
+      expect(userModel.findByIdAndUpdate).toHaveBeenCalledWith(
+        userId.toString(),
+        {
+          passwordHash: 'hashed-password',
+          mustChangePassword: false,
+        },
+      );
+    });
+  });
+
+  describe('getDefaultPassword', () => {
+    it('returns the configured default password', () => {
+      expect(service.getDefaultPassword()).toBe('Meena1234!');
     });
   });
 });

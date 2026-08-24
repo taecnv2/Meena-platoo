@@ -20,10 +20,6 @@ export class CreateUserDto {
   @MinLength(1)
   name!: string;
 
-  @IsString()
-  @MinLength(8)
-  password!: string;
-
   @IsMongoId()
   roleId!: string;
 

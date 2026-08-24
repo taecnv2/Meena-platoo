@@ -48,6 +48,9 @@ export class User {
 
   @Prop({ type: Date, default: null })
   lastLoginAt!: Date | null;
+
+  @Prop({ type: Boolean, default: false })
+  mustChangePassword!: boolean;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
