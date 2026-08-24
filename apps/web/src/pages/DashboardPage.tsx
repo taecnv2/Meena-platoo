@@ -10,6 +10,9 @@ import {
   CheckCircle2,
   ArrowLeftRight,
   ClipboardCheck,
+  ShoppingCart,
+  CalendarClock,
+  Trash2,
 } from 'lucide-react'
 import { dashboardApi } from '@/api/endpoints/dashboard'
 import { StatCard } from '@/components/StatCard'
@@ -70,6 +73,26 @@ export function DashboardPage() {
               value={`${formatNumber(data.requisition.pendingRequests)} รายการ`}
               icon={Clock}
               tone="warning"
+            />
+            <StatCard label="คำขอเบิกวันนี้" value={`${formatNumber(data.requisition.today)} ครั้ง`} icon={CalendarClock} />
+            <StatCard label="คำขอเบิกเดือนนี้" value={`${formatNumber(data.requisition.thisMonth)} ครั้ง`} icon={ClipboardList} />
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard label="ยอดจัดซื้อวันนี้" value={formatCurrency(data.purchasing.today)} icon={ShoppingCart} />
+            <StatCard
+              label="ยอดจัดซื้อเดือนนี้"
+              value={formatCurrency(data.purchasing.thisMonth)}
+              icon={ShoppingCart}
+              trend={{ value: data.purchasing.changePercent, label: 'เทียบเดือนก่อน' }}
+            />
+            <StatCard label="ของเสียวันนี้" value={formatCurrency(data.waste.today)} icon={Trash2} tone="danger" />
+            <StatCard
+              label="ของเสียเดือนนี้"
+              value={formatCurrency(data.waste.thisMonth)}
+              icon={Trash2}
+              tone="danger"
+              trend={{ value: data.waste.changePercent, label: 'เทียบเดือนก่อน' }}
             />
           </div>
 

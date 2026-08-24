@@ -46,6 +46,13 @@ export const PERMISSIONS = {
   PURCHASING_APPROVE: 'purchasing.approve',
   PURCHASING_RECEIVE: 'purchasing.receive',
 
+  WASTE_READ: 'waste.read',
+  WASTE_CREATE: 'waste.create',
+  WASTE_APPROVE: 'waste.approve',
+
+  REPORTS_READ: 'reports.read',
+  AUDIT_READ: 'audit.read',
+
   USERS_READ: 'users.read',
   USERS_CREATE: 'users.create',
   USERS_UPDATE: 'users.update',

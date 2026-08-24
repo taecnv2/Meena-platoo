@@ -19,14 +19,16 @@ import { PURCHASE_ORDER_STATUSES, type PurchaseOrder, type PurchaseOrderStatus }
 export function PurchaseOrdersListPage() {
   const canCreate = usePermission(PERMISSIONS.PURCHASING_CREATE)
   const [statusFilter, setStatusFilter] = useState<PurchaseOrderStatus | ''>('')
+  const [supplierFilter, setSupplierFilter] = useState('')
   const [dateRange, setDateRange] = useState<DateRangeValue>({ dateFrom: null, dateTo: null })
 
   const { data: suppliers } = useQuery({ queryKey: ['suppliers'], queryFn: suppliersApi.list })
   const { data: purchaseOrders, isLoading } = useQuery({
-    queryKey: ['purchasing', statusFilter, dateRange.dateFrom, dateRange.dateTo],
+    queryKey: ['purchasing', statusFilter, supplierFilter, dateRange.dateFrom, dateRange.dateTo],
     queryFn: () =>
       purchasingApi.list({
         status: statusFilter || undefined,
+        supplierId: supplierFilter || undefined,
         dateFrom: dateRange.dateFrom ?? undefined,
         dateTo: dateRange.dateTo ?? undefined,
       }),
@@ -70,13 +72,20 @@ export function PurchaseOrdersListPage() {
         ) : null}
       </div>
 
-      <div className="max-w-xs">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:max-w-xl">
         <Select
           label="สถานะ"
           placeholder="ทุกสถานะ"
           options={PURCHASE_ORDER_STATUSES.map((status) => ({ value: status, label: PURCHASE_ORDER_STATUS_LABEL[status] }))}
           value={statusFilter}
           onChange={(event) => setStatusFilter(event.target.value as PurchaseOrderStatus | '')}
+        />
+        <Select
+          label="Supplier"
+          placeholder="ทุก Supplier"
+          options={(suppliers ?? []).map((s) => ({ value: s._id, label: s.name }))}
+          value={supplierFilter}
+          onChange={(event) => setSupplierFilter(event.target.value)}
         />
       </div>
 

@@ -26,8 +26,13 @@ import { RequisitionDetailPage } from '@/pages/requisitions/RequisitionDetailPag
 import { PurchaseOrdersListPage } from '@/pages/purchasing/PurchaseOrdersListPage'
 import { CreatePurchaseOrderPage } from '@/pages/purchasing/CreatePurchaseOrderPage'
 import { PurchaseOrderDetailPage } from '@/pages/purchasing/PurchaseOrderDetailPage'
+import { WastePage } from '@/pages/waste/WastePage'
+import { ZoneReportPage } from '@/pages/reports/ZoneReportPage'
+import { RequisitionReportPage } from '@/pages/reports/RequisitionReportPage'
+import { ComparisonReportPage } from '@/pages/reports/ComparisonReportPage'
 import { UsersPage } from '@/pages/management/UsersPage'
 import { RolesPage } from '@/pages/management/RolesPage'
+import { AuditLogListPage } from '@/pages/management/AuditLogListPage'
 
 export function AppRouter() {
   return (
@@ -80,6 +85,16 @@ export function AppRouter() {
         <Route path="/purchasing/new" element={<CreatePurchaseOrderPage />} />
       </Route>
 
+      <Route element={<ProtectedRoute permission={PERMISSIONS.WASTE_READ} />}>
+        <Route path="/waste" element={<WastePage />} />
+      </Route>
+
+      <Route element={<ProtectedRoute permission={PERMISSIONS.REPORTS_READ} />}>
+        <Route path="/reports/zone" element={<ZoneReportPage />} />
+        <Route path="/reports/requisition" element={<RequisitionReportPage />} />
+        <Route path="/reports/comparison" element={<ComparisonReportPage />} />
+      </Route>
+
       <Route element={<ProtectedRoute permission={PERMISSIONS.INGREDIENTS_READ} />}>
         <Route path="/master-data/ingredients" element={<IngredientsPage />} />
       </Route>
@@ -101,6 +116,9 @@ export function AppRouter() {
       </Route>
       <Route element={<ProtectedRoute permission={PERMISSIONS.ROLES_READ} />}>
         <Route path="/management/roles" element={<RolesPage />} />
+      </Route>
+      <Route element={<ProtectedRoute permission={PERMISSIONS.AUDIT_READ} />}>
+        <Route path="/management/audit-logs" element={<AuditLogListPage />} />
       </Route>
 
       <Route path="/" element={<RootRedirect />} />

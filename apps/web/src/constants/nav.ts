@@ -13,6 +13,7 @@ import {
   ListChecks,
   FilePlus,
   ShoppingCart,
+  Trash2,
   Database,
   Wheat,
   Tags,
@@ -22,6 +23,11 @@ import {
   Settings,
   Users,
   ShieldCheck,
+  History as AuditHistory,
+  BarChart3,
+  MapPinned,
+  ClipboardList,
+  GitCompareArrows,
 } from 'lucide-react'
 import { PERMISSIONS, type PermissionCode } from './permissions'
 
@@ -76,6 +82,20 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    label: 'ของเสีย',
+    icon: Trash2,
+    items: [{ label: 'รายการของเสีย', path: '/waste', permission: PERMISSIONS.WASTE_READ, icon: Trash2 }],
+  },
+  {
+    label: 'รายงาน',
+    icon: BarChart3,
+    items: [
+      { label: 'รายงานตาม Zone', path: '/reports/zone', permission: PERMISSIONS.REPORTS_READ, icon: MapPinned },
+      { label: 'รายงานใบเบิกสินค้า', path: '/reports/requisition', permission: PERMISSIONS.REPORTS_READ, icon: ClipboardList },
+      { label: 'รายงานเปรียบเทียบ', path: '/reports/comparison', permission: PERMISSIONS.REPORTS_READ, icon: GitCompareArrows },
+    ],
+  },
+  {
     label: 'ข้อมูลพื้นฐาน',
     icon: Database,
     items: [
@@ -92,6 +112,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: 'ผู้ใช้งาน', path: '/management/users', permission: PERMISSIONS.USERS_READ, icon: Users },
       { label: 'บทบาท', path: '/management/roles', permission: PERMISSIONS.ROLES_READ, icon: ShieldCheck },
+      { label: 'ประวัติการใช้งาน', path: '/management/audit-logs', permission: PERMISSIONS.AUDIT_READ, icon: AuditHistory },
     ],
   },
 ]

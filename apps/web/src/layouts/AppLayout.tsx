@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { ChevronDown, LogOut, Menu, X } from 'lucide-react'
 import { BrandLogo } from '@/components/BrandLogo'
+import { NotificationBell } from '@/components/NotificationBell'
 import { useAuth } from '@/features/auth/AuthContext'
 import { NAV_GROUPS, NAV_STANDALONE } from '@/constants/nav'
 import { cn } from '@/utils/cn'
@@ -130,6 +131,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <NotificationBell />
             <div className="hidden text-right sm:block">
               <p className="text-sm font-medium text-text-primary">{user?.username}</p>
               <p className="text-xs text-text-secondary">{user?.roleName}</p>

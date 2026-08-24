@@ -209,10 +209,22 @@ export interface DashboardSummary {
     lowStockCount: number
     outOfStockCount: number
   }
+  purchasing: {
+    today: number
+    thisMonth: number
+    changePercent: number
+  }
   requisition: {
+    today: number
+    thisMonth: number
     requestsInRange: number
     pendingRequests: number
     topRequestingZone: { zoneId: string; zoneName: string; count: number } | null
+  }
+  waste: {
+    today: number
+    thisMonth: number
+    changePercent: number
   }
   operations: {
     pendingApprovals: number
@@ -256,4 +268,164 @@ export interface PurchaseOrder {
   completedAt: string | null
   remark: string | null
   createdAt: string
+}
+
+export const WASTE_REASONS = [
+  'EXPIRED',
+  'SPOILED',
+  'DAMAGED',
+  'OVER_PREPARED',
+  'WRONG_PREPARATION',
+  'CUSTOMER_RETURN',
+  'OTHER',
+] as const
+export type WasteReason = (typeof WASTE_REASONS)[number]
+
+export const WASTE_STATUSES = ['PENDING_APPROVAL', 'APPROVED', 'REJECTED'] as const
+export type WasteStatus = (typeof WASTE_STATUSES)[number]
+
+export interface Waste {
+  _id: string
+  code: string
+  zoneId: string
+  ingredientId: string
+  quantity: number
+  unit: string
+  reason: WasteReason
+  unitCost: number
+  status: WasteStatus
+  reportedBy: string
+  approvedBy: string | null
+  approvedAt: string | null
+  rejectedBy: string | null
+  rejectionReason: string | null
+  remark: string | null
+  createdAt: string
+}
+
+export const AUDIT_ACTIONS = [
+  'USER_CREATED',
+  'USER_UPDATED',
+  'ROLE_CHANGED',
+  'PERMISSION_CHANGED',
+  'ZONE_CREATED',
+  'INGREDIENT_UPDATED',
+  'REQUISITION_APPROVED',
+  'TRANSFER_COMPLETED',
+  'STOCK_ADJUSTED',
+  'PURCHASE_RECEIVED',
+  'WASTE_CREATED',
+] as const
+export type AuditAction = (typeof AUDIT_ACTIONS)[number]
+
+export interface AuditLog {
+  _id: string
+  userId: string
+  action: AuditAction
+  entity: string
+  entityId: string | null
+  before: unknown
+  after: unknown
+  remark: string | null
+  createdAt: string
+}
+
+export const NOTIFICATION_TYPES = [
+  'REQUISITION_APPROVED',
+  'REQUISITION_REJECTED',
+  'PURCHASE_APPROVED',
+  'PURCHASE_REJECTED',
+  'WASTE_APPROVED',
+  'WASTE_REJECTED',
+] as const
+export type NotificationType = (typeof NOTIFICATION_TYPES)[number]
+
+export interface AppNotification {
+  _id: string
+  userId: string
+  type: NotificationType
+  title: string
+  message: string
+  entity: string | null
+  entityId: string | null
+  isRead: boolean
+  createdAt: string
+}
+
+export interface ZoneReportRow {
+  zoneId: string
+  zoneName: string
+  stockQuantity: number
+  stockValue: number
+  usageQuantity: number
+  usageValue: number
+  transfersIn: number
+  transfersOut: number
+  requisitionCount: number
+  requisitionValue: number
+}
+
+export interface RequisitionReportIngredientRow {
+  ingredientId: string
+  ingredientName: string
+  quantity: number
+  value: number
+}
+
+export interface RequisitionReportZoneRow {
+  zoneId: string
+  zoneName: string
+  count: number
+  value: number
+}
+
+export interface RequisitionReportUserRow {
+  userId: string
+  username: string
+  count: number
+  value: number
+}
+
+export interface RequisitionReport {
+  numberOfRequests: number
+  requestedItems: number
+  totalRequestedValue: number
+  averageRequestsPerDay: number
+  topRequestedIngredients: RequisitionReportIngredientRow[]
+  requestsByZone: RequisitionReportZoneRow[]
+  requestsByUser: RequisitionReportUserRow[]
+  trend: Array<{ date: string; count: number }>
+}
+
+export const COMPARISON_PERIOD_TYPES = [
+  'TODAY_VS_YESTERDAY',
+  'THIS_WEEK_VS_LAST_WEEK',
+  'THIS_MONTH_VS_LAST_MONTH',
+  'THIS_YEAR_VS_LAST_YEAR',
+  'CUSTOM',
+] as const
+export type ComparisonPeriodType = (typeof COMPARISON_PERIOD_TYPES)[number]
+
+export const COMPARISON_METRICS = [
+  'STOCK_VALUE',
+  'PURCHASE',
+  'STOCK_USAGE',
+  'REQUISITION',
+  'WASTE',
+  'TRANSFER',
+  'ADJUSTMENT',
+  'COST',
+] as const
+export type ComparisonMetric = (typeof COMPARISON_METRICS)[number]
+
+export interface ComparisonReport {
+  current: { from: string; to: string }
+  previous: { from: string; to: string }
+  metrics: Array<{
+    metric: ComparisonMetric
+    currentValue: number
+    previousValue: number
+    difference: number
+    percentageChange: number
+  }>
 }
