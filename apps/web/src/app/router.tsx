@@ -27,8 +27,12 @@ import { PurchaseOrdersListPage } from '@/pages/purchasing/PurchaseOrdersListPag
 import { CreatePurchaseOrderPage } from '@/pages/purchasing/CreatePurchaseOrderPage'
 import { PurchaseOrderDetailPage } from '@/pages/purchasing/PurchaseOrderDetailPage'
 import { WastePage } from '@/pages/waste/WastePage'
+import { InventoryReportPage } from '@/pages/reports/InventoryReportPage'
 import { ZoneReportPage } from '@/pages/reports/ZoneReportPage'
 import { RequisitionReportPage } from '@/pages/reports/RequisitionReportPage'
+import { PurchaseReportPage } from '@/pages/reports/PurchaseReportPage'
+import { WasteReportPage } from '@/pages/reports/WasteReportPage'
+import { CostReportPage } from '@/pages/reports/CostReportPage'
 import { ComparisonReportPage } from '@/pages/reports/ComparisonReportPage'
 import { UsersPage } from '@/pages/management/UsersPage'
 import { RolesPage } from '@/pages/management/RolesPage'
@@ -90,8 +94,12 @@ export function AppRouter() {
       </Route>
 
       <Route element={<ProtectedRoute permission={PERMISSIONS.REPORTS_READ} />}>
+        <Route path="/reports/inventory" element={<InventoryReportPage />} />
         <Route path="/reports/zone" element={<ZoneReportPage />} />
         <Route path="/reports/requisition" element={<RequisitionReportPage />} />
+        <Route path="/reports/purchase" element={<PurchaseReportPage />} />
+        <Route path="/reports/waste" element={<WasteReportPage />} />
+        <Route path="/reports/cost" element={<CostReportPage />} />
         <Route path="/reports/comparison" element={<ComparisonReportPage />} />
       </Route>
 

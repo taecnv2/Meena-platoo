@@ -28,6 +28,7 @@ import {
   MapPinned,
   ClipboardList,
   GitCompareArrows,
+  Wallet,
 } from 'lucide-react'
 import { PERMISSIONS, type PermissionCode } from './permissions'
 
@@ -90,8 +91,12 @@ export const NAV_GROUPS: NavGroup[] = [
     label: 'รายงาน',
     icon: BarChart3,
     items: [
+      { label: 'รายงานสต๊อก', path: '/reports/inventory', permission: PERMISSIONS.REPORTS_READ, icon: Wheat },
       { label: 'รายงานตาม Zone', path: '/reports/zone', permission: PERMISSIONS.REPORTS_READ, icon: MapPinned },
       { label: 'รายงานใบเบิกสินค้า', path: '/reports/requisition', permission: PERMISSIONS.REPORTS_READ, icon: ClipboardList },
+      { label: 'รายงานจัดซื้อ', path: '/reports/purchase', permission: PERMISSIONS.REPORTS_READ, icon: ShoppingCart },
+      { label: 'รายงานของเสีย', path: '/reports/waste', permission: PERMISSIONS.REPORTS_READ, icon: Trash2 },
+      { label: 'รายงานต้นทุน', path: '/reports/cost', permission: PERMISSIONS.REPORTS_READ, icon: Wallet },
       { label: 'รายงานเปรียบเทียบ', path: '/reports/comparison', permission: PERMISSIONS.REPORTS_READ, icon: GitCompareArrows },
     ],
   },

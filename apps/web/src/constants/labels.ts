@@ -6,6 +6,7 @@ import type {
   PurchaseOrderStatus,
   RequisitionStatus,
   StockCountStatus,
+  StockStatus,
   TransferStatus,
   WasteReason,
   WasteStatus,
@@ -111,6 +112,18 @@ export const WASTE_STATUS_COLOR: Record<WasteStatus, 'success' | 'warning' | 'da
   PENDING_APPROVAL: 'warning',
   APPROVED: 'success',
   REJECTED: 'danger',
+}
+
+export const STOCK_STATUS_LABEL: Record<StockStatus, string> = {
+  OUT_OF_STOCK: 'หมดสต๊อก',
+  LOW_STOCK: 'ใกล้หมด',
+  NORMAL: 'ปกติ',
+}
+
+export const STOCK_STATUS_COLOR: Record<StockStatus, 'success' | 'warning' | 'danger' | 'info' | 'gray'> = {
+  OUT_OF_STOCK: 'danger',
+  LOW_STOCK: 'warning',
+  NORMAL: 'success',
 }
 
 export const COMPARISON_PERIOD_LABEL: Record<ComparisonPeriodType, string> = {

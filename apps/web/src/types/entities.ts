@@ -429,3 +429,98 @@ export interface ComparisonReport {
     percentageChange: number
   }>
 }
+
+export type StockStatus = 'OUT_OF_STOCK' | 'LOW_STOCK' | 'NORMAL'
+
+export interface InventoryReportRow {
+  ingredientId: string
+  ingredientName: string
+  unit: string
+  totalQuantity: number
+  totalValue: number
+  minimumStock: number
+  maximumStock: number
+  stockStatus: StockStatus
+  movementInQuantity: number
+  movementInValue: number
+  movementOutQuantity: number
+  movementOutValue: number
+}
+
+export interface PurchaseReportSupplierRow {
+  supplierId: string
+  supplierName: string
+  count: number
+  value: number
+}
+
+export interface PurchaseReportIngredientRow {
+  ingredientId: string
+  ingredientName: string
+  quantity: number
+  value: number
+}
+
+export interface PurchaseReport {
+  totals: {
+    numberOfOrders: number
+    totalOrderedValue: number
+    totalReceivedValue: number
+  }
+  bySupplier: PurchaseReportSupplierRow[]
+  byIngredient: PurchaseReportIngredientRow[]
+  trend: Array<{ date: string; value: number }>
+}
+
+export interface WasteReportReasonRow {
+  reason: WasteReason
+  quantity: number
+  value: number
+}
+
+export interface WasteReportZoneRow {
+  zoneId: string
+  zoneName: string
+  quantity: number
+  value: number
+}
+
+export interface WasteReportIngredientRow {
+  ingredientId: string
+  ingredientName: string
+  quantity: number
+  value: number
+}
+
+export interface WasteReport {
+  totals: {
+    numberOfRecords: number
+    totalQuantity: number
+    totalValue: number
+    pendingCount: number
+  }
+  byReason: WasteReportReasonRow[]
+  byZone: WasteReportZoneRow[]
+  byIngredient: WasteReportIngredientRow[]
+  trend: Array<{ date: string; value: number }>
+}
+
+export interface CostReportIngredientRow {
+  ingredientId: string
+  ingredientName: string
+  cost: number
+}
+
+export interface CostReportZoneRow {
+  zoneId: string
+  zoneName: string
+  cost: number
+}
+
+export interface CostReport {
+  totalCost: number
+  byIngredient: CostReportIngredientRow[]
+  byZone: CostReportZoneRow[]
+  byMovementType: Array<{ movementType: MovementType; cost: number }>
+  trend: Array<{ date: string; cost: number }>
+}
