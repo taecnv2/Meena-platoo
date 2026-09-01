@@ -77,6 +77,20 @@ export const PERMISSION_CODES = {
   PERMISSIONS_READ: 'permissions.read',
 
   AUDIT_READ: 'audit.read',
+
+  ZONES_EXPORT: 'zones.export',
+  CATEGORIES_EXPORT: 'categories.export',
+  UNITS_EXPORT: 'units.export',
+  SUPPLIERS_EXPORT: 'suppliers.export',
+  INGREDIENTS_EXPORT: 'ingredients.export',
+  INVENTORY_EXPORT: 'inventory.export',
+  REQUISITION_EXPORT: 'requisition.export',
+  TRANSFER_EXPORT: 'transfer.export',
+  STOCK_COUNT_EXPORT: 'stockCount.export',
+  USERS_EXPORT: 'users.export',
+  ROLES_EXPORT: 'roles.export',
+  PERMISSIONS_EXPORT: 'permissions.export',
+  REPORTS_EXPORT: 'reports.export',
 } as const;
 
 export type PermissionCode =
@@ -88,6 +102,78 @@ export interface PermissionRegistryEntry {
   module: string;
   description: string;
 }
+
+/**
+ * Config-driven source for the 13 `.export` permissions -- one row per exportable resource
+ * instead of 13 hand-repeated `{code, name, module, description}` registry entries.
+ */
+const EXPORTABLE_RESOURCES: Array<{
+  code: PermissionCode;
+  name: string;
+  module: string;
+}> = [
+  {
+    code: PERMISSION_CODES.ZONES_EXPORT,
+    name: 'ส่งออกข้อมูล Zone',
+    module: 'ZONE',
+  },
+  {
+    code: PERMISSION_CODES.CATEGORIES_EXPORT,
+    name: 'ส่งออกหมวดหมู่',
+    module: 'CATEGORY',
+  },
+  {
+    code: PERMISSION_CODES.UNITS_EXPORT,
+    name: 'ส่งออกหน่วยนับ',
+    module: 'UNIT',
+  },
+  {
+    code: PERMISSION_CODES.SUPPLIERS_EXPORT,
+    name: 'ส่งออก Supplier',
+    module: 'SUPPLIER',
+  },
+  {
+    code: PERMISSION_CODES.INGREDIENTS_EXPORT,
+    name: 'ส่งออกวัตถุดิบ',
+    module: 'INGREDIENT',
+  },
+  {
+    code: PERMISSION_CODES.INVENTORY_EXPORT,
+    name: 'ส่งออกข้อมูลสต๊อก',
+    module: 'INVENTORY',
+  },
+  {
+    code: PERMISSION_CODES.REQUISITION_EXPORT,
+    name: 'ส่งออกใบเบิกสินค้า',
+    module: 'REQUISITION',
+  },
+  {
+    code: PERMISSION_CODES.TRANSFER_EXPORT,
+    name: 'ส่งออกการโอนสินค้า',
+    module: 'TRANSFER',
+  },
+  {
+    code: PERMISSION_CODES.STOCK_COUNT_EXPORT,
+    name: 'ส่งออกการตรวจนับสต๊อก',
+    module: 'STOCK_COUNT',
+  },
+  {
+    code: PERMISSION_CODES.USERS_EXPORT,
+    name: 'ส่งออกผู้ใช้งาน',
+    module: 'USER',
+  },
+  { code: PERMISSION_CODES.ROLES_EXPORT, name: 'ส่งออกบทบาท', module: 'ROLE' },
+  {
+    code: PERMISSION_CODES.PERMISSIONS_EXPORT,
+    name: 'ส่งออกสิทธิ์การใช้งาน',
+    module: 'PERMISSION',
+  },
+  {
+    code: PERMISSION_CODES.REPORTS_EXPORT,
+    name: 'ส่งออกรายงาน',
+    module: 'REPORTS',
+  },
+];
 
 export const PERMISSION_REGISTRY: PermissionRegistryEntry[] = [
   {
@@ -426,4 +512,11 @@ export const PERMISSION_REGISTRY: PermissionRegistryEntry[] = [
     module: 'AUDIT',
     description: 'Allows user to view the audit log',
   },
+
+  ...EXPORTABLE_RESOURCES.map((resource): PermissionRegistryEntry => ({
+    code: resource.code,
+    name: resource.name,
+    module: resource.module,
+    description: `Allows user to export ${resource.module.toLowerCase()} data as CSV/PDF`,
+  })),
 ];
