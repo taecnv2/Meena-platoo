@@ -7,7 +7,10 @@ import { Select } from '@/components/Select'
 import { Badge } from '@/components/Badge'
 import { DataTable, type DataTableColumn } from '@/components/DataTable'
 import { DateRangeFilter } from '@/components/DateRangeFilter'
+import { ExportButton } from '@/components/ExportButton'
 import { MOVEMENT_TYPE_LABEL } from '@/constants/labels'
+import { usePermission } from '@/hooks/usePermission'
+import { PERMISSIONS } from '@/constants/permissions'
 import { formatDateTime, formatQuantity } from '@/utils/format'
 import type { DateRangeValue } from '@/utils/dateRange'
 import { MOVEMENT_TYPES, type MovementType, type StockMovement } from '@/types/entities'
@@ -15,6 +18,7 @@ import { MOVEMENT_TYPES, type MovementType, type StockMovement } from '@/types/e
 const INCOMING_TYPES: MovementType[] = ['STOCK_IN', 'TRANSFER_IN', 'ADJUSTMENT_IN']
 
 export function MovementsPage() {
+  const canExport = usePermission(PERMISSIONS.INVENTORY_EXPORT)
   const [ingredientFilter, setIngredientFilter] = useState('')
   const [zoneFilter, setZoneFilter] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
@@ -56,9 +60,24 @@ export function MovementsPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-xl font-semibold text-text-primary">ประวัติการเคลื่อนไหวสต๊อก</h1>
-        <p className="text-sm text-text-secondary">ประวัติการรับ-จ่าย-โอน-ปรับปรุงสต๊อกทั้งหมด</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-text-primary">ประวัติการเคลื่อนไหวสต๊อก</h1>
+          <p className="text-sm text-text-secondary">ประวัติการรับ-จ่าย-โอน-ปรับปรุงสต๊อกทั้งหมด</p>
+        </div>
+        {canExport ? (
+          <ExportButton
+            onExport={(format) =>
+              stockMovementsApi.exportFile(format, {
+                ingredientId: ingredientFilter || undefined,
+                zoneId: zoneFilter || undefined,
+                movementType: typeFilter || undefined,
+                dateFrom: dateRange.dateFrom ?? undefined,
+                dateTo: dateRange.dateTo ?? undefined,
+              })
+            }
+          />
+        ) : null}
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">

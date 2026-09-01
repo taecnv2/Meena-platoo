@@ -1,4 +1,5 @@
 import { axiosClient } from '../axiosClient'
+import { downloadFile } from '../downloadFile'
 import type { StockCount } from '@/types/entities'
 
 export interface CreateStockCountPayload {
@@ -12,4 +13,5 @@ export const stockCountsApi = {
   create: (payload: CreateStockCountPayload) =>
     axiosClient.post<StockCount>('/stock-counts', payload).then((response) => response.data),
   approve: (id: string) => axiosClient.patch<StockCount>(`/stock-counts/${id}/approve`, {}).then((response) => response.data),
+  exportFile: (format: 'csv' | 'pdf') => downloadFile('/stock-counts/export', { format }),
 }

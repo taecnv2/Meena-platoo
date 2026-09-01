@@ -8,13 +8,17 @@ import { Select } from '@/components/Select'
 import { Card, CardBody, CardHeader } from '@/components/Card'
 import { DataTable, type DataTableColumn } from '@/components/DataTable'
 import { DateRangeFilter } from '@/components/DateRangeFilter'
+import { ExportButton } from '@/components/ExportButton'
 import { LoadingState } from '@/components/LoadingState'
+import { usePermission } from '@/hooks/usePermission'
+import { PERMISSIONS } from '@/constants/permissions'
 import { WASTE_REASON_LABEL } from '@/constants/labels'
 import { formatCurrency, formatNumber } from '@/utils/format'
 import { getPresetRange, type DateRangeValue } from '@/utils/dateRange'
 import type { WasteReportIngredientRow, WasteReportReasonRow, WasteReportZoneRow } from '@/types/entities'
 
 export function WasteReportPage() {
+  const canExport = usePermission(PERMISSIONS.REPORTS_EXPORT)
   const [dateRange, setDateRange] = useState<DateRangeValue>(() => getPresetRange('thisMonth'))
   const [zoneFilter, setZoneFilter] = useState('')
 
@@ -49,9 +53,22 @@ export function WasteReportPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-xl font-semibold text-text-primary">รายงานของเสีย</h1>
-        <p className="text-sm text-text-secondary">สรุปของเสียที่อนุมัติแล้วตามสาเหตุ Zone และวัตถุดิบ</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-text-primary">รายงานของเสีย</h1>
+          <p className="text-sm text-text-secondary">สรุปของเสียที่อนุมัติแล้วตามสาเหตุ Zone และวัตถุดิบ</p>
+        </div>
+        {canExport ? (
+          <ExportButton
+            onExport={(format) =>
+              reportsApi.exportWaste(format, {
+                dateFrom: dateRange.dateFrom ?? undefined,
+                dateTo: dateRange.dateTo ?? undefined,
+                zoneId: zoneFilter || undefined,
+              })
+            }
+          />
+        ) : null}
       </div>
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end">

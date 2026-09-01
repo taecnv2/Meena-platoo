@@ -32,6 +32,7 @@ export function RequisitionDetailPage() {
   const [isRejecting, setIsRejecting] = useState(false)
   const [rejectionReason, setRejectionReason] = useState('')
   const [isFulfilling, setIsFulfilling] = useState(false)
+  const [fulfillQuantities, setFulfillQuantities] = useState<Record<string, number>>({})
   const [isConfirmingApprove, setIsConfirmingApprove] = useState(false)
   const [isConfirmingCancel, setIsConfirmingCancel] = useState(false)
   const [isMutating, setIsMutating] = useState(false)
@@ -99,13 +100,36 @@ export function RequisitionDetailPage() {
     }
   }
 
+  const outstandingItems = useMemo(
+    () => requisition?.items.filter((item) => item.fulfilledQuantity < item.approvedQuantity) ?? [],
+    [requisition],
+  )
+
+  const openFulfillModal = () => {
+    if (outstandingItems.length === 0) {
+      toast.show('info', 'ไม่มีรายการที่ต้องจ่ายเพิ่ม')
+      return
+    }
+    setFulfillQuantities(
+      Object.fromEntries(outstandingItems.map((item) => [item.ingredientId, item.approvedQuantity - item.fulfilledQuantity])),
+    )
+    setIsFulfilling(true)
+  }
+
+  const hasInvalidFulfillQuantity = outstandingItems.some((item) => {
+    const remaining = item.approvedQuantity - item.fulfilledQuantity
+    const value = fulfillQuantities[item.ingredientId] ?? 0
+    return value < 0 || value > remaining
+  })
+  const hasAnyPositiveFulfillQuantity = outstandingItems.some((item) => (fulfillQuantities[item.ingredientId] ?? 0) > 0)
+
   const handleFulfill = async () => {
     if (!requisition) return
-    const items = requisition.items
-      .filter((item) => item.fulfilledQuantity < item.approvedQuantity)
-      .map((item) => ({ ingredientId: item.ingredientId, quantity: item.approvedQuantity - item.fulfilledQuantity }))
+    const items = outstandingItems
+      .map((item) => ({ ingredientId: item.ingredientId, quantity: fulfillQuantities[item.ingredientId] ?? 0 }))
+      .filter((item) => item.quantity > 0)
     if (items.length === 0) {
-      toast.show('info', 'ไม่มีรายการที่ต้องจ่ายเพิ่ม')
+      toast.show('info', 'กรุณาระบุจำนวนที่จะจ่ายอย่างน้อยหนึ่งรายการ')
       return
     }
     setIsMutating(true)
@@ -147,7 +171,7 @@ export function RequisitionDetailPage() {
             </Button>
           ) : null}
           {canFulfill && ['APPROVED', 'PARTIALLY_FULFILLED'].includes(requisition.status) ? (
-            <Button onClick={() => setIsFulfilling(true)}>จ่ายสินค้า</Button>
+            <Button onClick={openFulfillModal}>จ่ายสินค้า</Button>
           ) : null}
           {canCancel && ['DRAFT', 'PENDING', 'APPROVED'].includes(requisition.status) ? (
             <Button variant="secondary" onClick={() => setIsConfirmingCancel(true)}>
@@ -224,15 +248,42 @@ export function RequisitionDetailPage() {
         </div>
       </Modal>
 
-      <ConfirmDialog
-        isOpen={isFulfilling}
-        title="จ่ายสินค้าตามใบเบิก"
-        message={`จ่ายสินค้าจากคลังสินค้าให้ครบตามจำนวนที่อนุมัติซึ่งยังไม่ได้จ่ายสำหรับใบเบิก ${requisition.code}?`}
-        confirmLabel="ยืนยันการจ่ายสินค้า"
-        isLoading={isMutating}
-        onConfirm={() => void handleFulfill()}
-        onCancel={() => setIsFulfilling(false)}
-      />
+      <Modal isOpen={isFulfilling} onClose={() => setIsFulfilling(false)} title="จ่ายสินค้าตามใบเบิก">
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-text-secondary">
+            ระบุจำนวนที่จะจ่ายสำหรับแต่ละรายการของใบเบิก {requisition.code} (จ่ายบางส่วนได้ ไม่เกินจำนวนที่เหลือ)
+          </p>
+          <div className="flex flex-col gap-3">
+            {outstandingItems.map((item) => {
+              const remaining = item.approvedQuantity - item.fulfilledQuantity
+              const value = fulfillQuantities[item.ingredientId] ?? 0
+              const error = value > remaining ? 'จำนวนเกินยอดคงเหลือ' : value < 0 ? 'จำนวนต้องไม่ติดลบ' : undefined
+              return (
+                <Input
+                  key={item.ingredientId}
+                  label={`${ingredientMap.get(item.ingredientId) ?? '-'} (เหลือ ${formatQuantity(remaining, item.unit)})`}
+                  type="number"
+                  min={0}
+                  max={remaining}
+                  step="any"
+                  value={value}
+                  error={error}
+                  onChange={(event) =>
+                    setFulfillQuantities((prev) => ({ ...prev, [item.ingredientId]: Number(event.target.value) }))
+                  }
+                />
+              )
+            })}
+          </div>
+          <Button
+            isLoading={isMutating}
+            disabled={hasInvalidFulfillQuantity || !hasAnyPositiveFulfillQuantity}
+            onClick={() => void handleFulfill()}
+          >
+            ยืนยันการจ่ายสินค้า
+          </Button>
+        </div>
+      </Modal>
     </div>
   )
 }

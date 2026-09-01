@@ -1,4 +1,5 @@
 import { axiosClient } from '../axiosClient'
+import { downloadFile } from '../downloadFile'
 import type { Transfer } from '@/types/entities'
 
 export interface CreateTransferPayload {
@@ -17,4 +18,6 @@ export const transfersApi = {
   get: (id: string) => axiosClient.get<Transfer>(`/transfers/${id}`).then((response) => response.data),
   create: (payload: CreateTransferPayload) =>
     axiosClient.post<Transfer>('/transfers', payload).then((response) => response.data),
+  exportFile: (format: 'csv' | 'pdf', filter?: TransfersFilter) =>
+    downloadFile('/transfers/export', { ...filter, format }),
 }

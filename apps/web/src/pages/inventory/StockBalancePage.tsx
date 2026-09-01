@@ -7,11 +7,15 @@ import { zonesApi } from '@/api/endpoints/zones'
 import { Select } from '@/components/Select'
 import { Badge } from '@/components/Badge'
 import { DataTable, type DataTableColumn } from '@/components/DataTable'
+import { ExportButton } from '@/components/ExportButton'
 import { useAccessibleZoneIds } from '@/hooks/useZoneAccess'
+import { usePermission } from '@/hooks/usePermission'
+import { PERMISSIONS } from '@/constants/permissions'
 import { formatQuantity } from '@/utils/format'
 import type { ZoneStock } from '@/types/entities'
 
 export function StockBalancePage() {
+  const canExport = usePermission(PERMISSIONS.INVENTORY_EXPORT)
   const accessibleZoneIds = useAccessibleZoneIds()
   const [zoneFilter, setZoneFilter] = useState('')
 
@@ -64,9 +68,14 @@ export function StockBalancePage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-xl font-semibold text-text-primary">สต๊อกคงเหลือ</h1>
-        <p className="text-sm text-text-secondary">ดูจำนวนวัตถุดิบคงเหลือแยกตาม Zone</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-text-primary">สต๊อกคงเหลือ</h1>
+          <p className="text-sm text-text-secondary">ดูจำนวนวัตถุดิบคงเหลือแยกตาม Zone</p>
+        </div>
+        {canExport ? (
+          <ExportButton onExport={(format) => inventoryApi.exportFile(format, zoneFilter ? { zoneId: zoneFilter } : undefined)} />
+        ) : null}
       </div>
 
       <div className="max-w-xs">

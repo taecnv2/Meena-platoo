@@ -1,4 +1,5 @@
 import { axiosClient } from '../axiosClient'
+import { downloadFile } from '../downloadFile'
 import type { Requisition, RequisitionStatus } from '@/types/entities'
 
 export interface CreateRequisitionPayload {
@@ -34,4 +35,6 @@ export const requisitionsApi = {
   fulfill: (id: string, payload: FulfillRequisitionPayload) =>
     axiosClient.patch<Requisition>(`/requisitions/${id}/fulfill`, payload).then((response) => response.data),
   cancel: (id: string) => axiosClient.patch<Requisition>(`/requisitions/${id}/cancel`, {}).then((response) => response.data),
+  exportFile: (format: 'csv' | 'pdf', filter?: RequisitionsFilter) =>
+    downloadFile('/requisitions/export', { ...filter, format }),
 }
