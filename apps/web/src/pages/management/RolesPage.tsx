@@ -12,6 +12,7 @@ import { Input } from '@/components/Input'
 import { Badge } from '@/components/Badge'
 import { Modal } from '@/components/Modal'
 import { DataTable, type DataTableColumn } from '@/components/DataTable'
+import { ExportButton } from '@/components/ExportButton'
 import { useToast } from '@/components/Toast'
 import { usePermission } from '@/hooks/usePermission'
 import { PERMISSIONS } from '@/constants/permissions'
@@ -30,6 +31,7 @@ export function RolesPage() {
   const toast = useToast()
   const canCreate = usePermission(PERMISSIONS.ROLES_CREATE)
   const canUpdate = usePermission(PERMISSIONS.ROLES_UPDATE)
+  const canExport = usePermission(PERMISSIONS.ROLES_EXPORT)
   const [editing, setEditing] = useState<Role | 'new' | null>(null)
 
   const { data: roles, isLoading } = useQuery({ queryKey: ['roles'], queryFn: rolesApi.list })
@@ -105,11 +107,14 @@ export function RolesPage() {
           <h1 className="text-xl font-semibold text-text-primary">บทบาท</h1>
           <p className="text-sm text-text-secondary">จัดการบทบาทและสิทธิ์การใช้งาน</p>
         </div>
-        {canCreate ? (
-          <Button onClick={openCreate}>
-            <Plus className="size-4" /> เพิ่มบทบาท
-          </Button>
-        ) : null}
+        <div className="flex items-center gap-2">
+          {canExport ? <ExportButton onExport={(format) => rolesApi.exportFile(format)} /> : null}
+          {canCreate ? (
+            <Button onClick={openCreate}>
+              <Plus className="size-4" /> เพิ่มบทบาท
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       <DataTable columns={columns} rows={roles ?? []} rowKey={(row) => row._id} isLoading={isLoading} emptyMessage="ยังไม่มีบทบาท" />

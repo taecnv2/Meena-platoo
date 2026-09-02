@@ -63,6 +63,20 @@ export const PERMISSIONS = {
   ROLES_UPDATE: 'roles.update',
 
   PERMISSIONS_READ: 'permissions.read',
+
+  ZONES_EXPORT: 'zones.export',
+  CATEGORIES_EXPORT: 'categories.export',
+  UNITS_EXPORT: 'units.export',
+  SUPPLIERS_EXPORT: 'suppliers.export',
+  INGREDIENTS_EXPORT: 'ingredients.export',
+  INVENTORY_EXPORT: 'inventory.export',
+  REQUISITION_EXPORT: 'requisition.export',
+  TRANSFER_EXPORT: 'transfer.export',
+  STOCK_COUNT_EXPORT: 'stockCount.export',
+  USERS_EXPORT: 'users.export',
+  ROLES_EXPORT: 'roles.export',
+  PERMISSIONS_EXPORT: 'permissions.export',
+  REPORTS_EXPORT: 'reports.export',
 } as const
 
 export type PermissionCode = (typeof PERMISSIONS)[keyof typeof PERMISSIONS]

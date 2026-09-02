@@ -17,6 +17,7 @@ export const AUDIT_ACTIONS = [
   'STOCK_ADJUSTED',
   'PURCHASE_RECEIVED',
   'WASTE_CREATED',
+  'DATA_EXPORTED',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 

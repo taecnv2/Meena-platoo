@@ -15,6 +15,7 @@ import { Badge } from '@/components/Badge'
 import { Modal } from '@/components/Modal'
 import { DataTable, type DataTableColumn } from '@/components/DataTable'
 import { DateRangeFilter } from '@/components/DateRangeFilter'
+import { ExportButton } from '@/components/ExportButton'
 import { useToast } from '@/components/Toast'
 import { usePermission } from '@/hooks/usePermission'
 import { useAccessibleZoneIds } from '@/hooks/useZoneAccess'
@@ -36,6 +37,7 @@ export function TransfersPage() {
   const queryClient = useQueryClient()
   const toast = useToast()
   const canCreate = usePermission(PERMISSIONS.TRANSFER_CREATE)
+  const canExport = usePermission(PERMISSIONS.TRANSFER_EXPORT)
   const accessibleZoneIds = useAccessibleZoneIds()
   const [isCreating, setIsCreating] = useState(false)
   const [dateRange, setDateRange] = useState<DateRangeValue>({ dateFrom: null, dateTo: null })
@@ -112,11 +114,23 @@ export function TransfersPage() {
           <h1 className="text-xl font-semibold text-text-primary">โอนสินค้า</h1>
           <p className="text-sm text-text-secondary">โอนวัตถุดิบระหว่าง Zone โดยตรง</p>
         </div>
-        {canCreate ? (
-          <Button onClick={openCreate}>
-            <Plus className="size-4" /> โอนสินค้า
-          </Button>
-        ) : null}
+        <div className="flex items-center gap-2">
+          {canExport ? (
+            <ExportButton
+              onExport={(format) =>
+                transfersApi.exportFile(format, {
+                  dateFrom: dateRange.dateFrom ?? undefined,
+                  dateTo: dateRange.dateTo ?? undefined,
+                })
+              }
+            />
+          ) : null}
+          {canCreate ? (
+            <Button onClick={openCreate}>
+              <Plus className="size-4" /> โอนสินค้า
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       <DateRangeFilter value={dateRange} onChange={setDateRange} />

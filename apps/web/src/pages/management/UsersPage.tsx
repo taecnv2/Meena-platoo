@@ -14,6 +14,7 @@ import { Select } from '@/components/Select'
 import { Badge } from '@/components/Badge'
 import { Modal } from '@/components/Modal'
 import { DataTable, type DataTableColumn } from '@/components/DataTable'
+import { ExportButton } from '@/components/ExportButton'
 import { useToast } from '@/components/Toast'
 import { usePermission } from '@/hooks/usePermission'
 import { PERMISSIONS } from '@/constants/permissions'
@@ -34,6 +35,7 @@ export function UsersPage() {
   const canCreate = usePermission(PERMISSIONS.USERS_CREATE)
   const canUpdate = usePermission(PERMISSIONS.USERS_UPDATE)
   const canDisable = usePermission(PERMISSIONS.USERS_DISABLE)
+  const canExport = usePermission(PERMISSIONS.USERS_EXPORT)
   const [editing, setEditing] = useState<UserAccount | 'new' | null>(null)
   const [resettingUser, setResettingUser] = useState<UserAccount | null>(null)
   const [newPassword, setNewPassword] = useState('')
@@ -144,11 +146,14 @@ export function UsersPage() {
           <h1 className="text-xl font-semibold text-text-primary">ผู้ใช้งาน</h1>
           <p className="text-sm text-text-secondary">จัดการผู้ใช้งาน บทบาท และ Zone ที่เข้าถึงได้</p>
         </div>
-        {canCreate ? (
-          <Button onClick={openCreate}>
-            <Plus className="size-4" /> เพิ่มผู้ใช้งาน
-          </Button>
-        ) : null}
+        <div className="flex items-center gap-2">
+          {canExport ? <ExportButton onExport={(format) => usersApi.exportFile(format)} /> : null}
+          {canCreate ? (
+            <Button onClick={openCreate}>
+              <Plus className="size-4" /> เพิ่มผู้ใช้งาน
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       <DataTable columns={columns} rows={users ?? []} rowKey={(row) => row._id} isLoading={isLoading} emptyMessage="ยังไม่มีผู้ใช้งาน" />

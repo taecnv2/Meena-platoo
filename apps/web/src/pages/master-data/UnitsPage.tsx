@@ -12,6 +12,7 @@ import { Select } from '@/components/Select'
 import { Badge } from '@/components/Badge'
 import { Modal } from '@/components/Modal'
 import { DataTable, type DataTableColumn } from '@/components/DataTable'
+import { ExportButton } from '@/components/ExportButton'
 import { useToast } from '@/components/Toast'
 import { usePermission } from '@/hooks/usePermission'
 import { PERMISSIONS } from '@/constants/permissions'
@@ -33,6 +34,7 @@ export function UnitsPage() {
   const toast = useToast()
   const canCreate = usePermission(PERMISSIONS.UNITS_CREATE)
   const canUpdate = usePermission(PERMISSIONS.UNITS_UPDATE)
+  const canExport = usePermission(PERMISSIONS.UNITS_EXPORT)
   const [editing, setEditing] = useState<Unit | 'new' | null>(null)
 
   const { data, isLoading } = useQuery({ queryKey: ['units'], queryFn: unitsApi.list })
@@ -96,11 +98,14 @@ export function UnitsPage() {
           <h1 className="text-xl font-semibold text-text-primary">หน่วยนับ</h1>
           <p className="text-sm text-text-secondary">จัดการหน่วยนับวัตถุดิบ</p>
         </div>
-        {canCreate ? (
-          <Button onClick={openCreate}>
-            <Plus className="size-4" /> เพิ่มหน่วยนับ
-          </Button>
-        ) : null}
+        <div className="flex items-center gap-2">
+          {canExport ? <ExportButton onExport={(format) => unitsApi.exportFile(format)} /> : null}
+          {canCreate ? (
+            <Button onClick={openCreate}>
+              <Plus className="size-4" /> เพิ่มหน่วยนับ
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       <DataTable columns={columns} rows={data ?? []} rowKey={(row) => row._id} isLoading={isLoading} emptyMessage="ยังไม่มีหน่วยนับ" />

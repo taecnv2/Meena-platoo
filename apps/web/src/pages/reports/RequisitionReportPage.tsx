@@ -6,7 +6,10 @@ import { StatCard } from '@/components/StatCard'
 import { Card, CardBody, CardHeader } from '@/components/Card'
 import { DataTable, type DataTableColumn } from '@/components/DataTable'
 import { DateRangeFilter } from '@/components/DateRangeFilter'
+import { ExportButton } from '@/components/ExportButton'
 import { LoadingState } from '@/components/LoadingState'
+import { usePermission } from '@/hooks/usePermission'
+import { PERMISSIONS } from '@/constants/permissions'
 import { formatCurrency, formatNumber, formatQuantity } from '@/utils/format'
 import { getPresetRange, type DateRangeValue } from '@/utils/dateRange'
 import type {
@@ -16,6 +19,7 @@ import type {
 } from '@/types/entities'
 
 export function RequisitionReportPage() {
+  const canExport = usePermission(PERMISSIONS.REPORTS_EXPORT)
   const [dateRange, setDateRange] = useState<DateRangeValue>(() => getPresetRange('thisMonth'))
 
   const { data, isLoading } = useQuery({
@@ -47,9 +51,21 @@ export function RequisitionReportPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-xl font-semibold text-text-primary">รายงานใบเบิกสินค้า</h1>
-        <p className="text-sm text-text-secondary">สรุปการเบิกสินค้าตามวัตถุดิบ Zone และผู้เบิก</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-text-primary">รายงานใบเบิกสินค้า</h1>
+          <p className="text-sm text-text-secondary">สรุปการเบิกสินค้าตามวัตถุดิบ Zone และผู้เบิก</p>
+        </div>
+        {canExport ? (
+          <ExportButton
+            onExport={(format) =>
+              reportsApi.exportRequisition(format, {
+                dateFrom: dateRange.dateFrom ?? undefined,
+                dateTo: dateRange.dateTo ?? undefined,
+              })
+            }
+          />
+        ) : null}
       </div>
 
       <DateRangeFilter value={dateRange} onChange={setDateRange} className="max-w-lg" />

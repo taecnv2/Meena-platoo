@@ -3,6 +3,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { AuditLogsModule } from '../audit-logs/audit-logs.module';
 import { IngredientsModule } from '../ingredients/ingredients.module';
 import { StockMovementsModule } from '../stock-movements/stock-movements.module';
+import { UnitsModule } from '../units/units.module';
 import { ZonesModule } from '../zones/zones.module';
 import { InventoryController } from './inventory.controller';
 import { InventoryService } from './inventory.service';
@@ -15,6 +16,7 @@ import { ZoneStock, ZoneStockSchema } from './schemas/zone-stock.schema';
     ]),
     IngredientsModule,
     StockMovementsModule,
+    UnitsModule,
     ZonesModule,
     AuditLogsModule,
   ],

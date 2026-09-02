@@ -9,6 +9,7 @@ import { Select } from '@/components/Select'
 import { Badge } from '@/components/Badge'
 import { DataTable, type DataTableColumn } from '@/components/DataTable'
 import { DateRangeFilter } from '@/components/DateRangeFilter'
+import { ExportButton } from '@/components/ExportButton'
 import { usePermission } from '@/hooks/usePermission'
 import { PERMISSIONS } from '@/constants/permissions'
 import { REQUISITION_STATUS_COLOR, REQUISITION_STATUS_LABEL } from '@/constants/labels'
@@ -18,6 +19,7 @@ import { REQUISITION_STATUSES, type Requisition, type RequisitionStatus } from '
 
 export function RequisitionsListPage() {
   const canCreate = usePermission(PERMISSIONS.REQUISITION_CREATE)
+  const canExport = usePermission(PERMISSIONS.REQUISITION_EXPORT)
   const [statusFilter, setStatusFilter] = useState<RequisitionStatus | ''>('')
   const [dateRange, setDateRange] = useState<DateRangeValue>({ dateFrom: null, dateTo: null })
 
@@ -62,13 +64,26 @@ export function RequisitionsListPage() {
           <h1 className="text-xl font-semibold text-text-primary">รายการใบเบิก</h1>
           <p className="text-sm text-text-secondary">ใบเบิกวัตถุดิบทั้งหมดที่คุณมีสิทธิ์เข้าถึง</p>
         </div>
-        {canCreate ? (
-          <Link to="/requisitions/new">
-            <Button>
-              <Plus className="size-4" /> สร้างใบเบิก
-            </Button>
-          </Link>
-        ) : null}
+        <div className="flex items-center gap-2">
+          {canExport ? (
+            <ExportButton
+              onExport={(format) =>
+                requisitionsApi.exportFile(format, {
+                  status: statusFilter || undefined,
+                  dateFrom: dateRange.dateFrom ?? undefined,
+                  dateTo: dateRange.dateTo ?? undefined,
+                })
+              }
+            />
+          ) : null}
+          {canCreate ? (
+            <Link to="/requisitions/new">
+              <Button>
+                <Plus className="size-4" /> สร้างใบเบิก
+              </Button>
+            </Link>
+          ) : null}
+        </div>
       </div>
 
       <div className="max-w-xs">

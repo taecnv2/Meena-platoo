@@ -1,4 +1,5 @@
 import { axiosClient } from '../axiosClient'
+import { downloadFile } from '../downloadFile'
 import type { StockMovement, ZoneStock } from '@/types/entities'
 
 export interface StockInPayload {
@@ -41,9 +42,13 @@ export const inventoryApi = {
     axiosClient.post<StockMovement>('/inventory/stock-out', payload).then((response) => response.data),
   adjust: (payload: AdjustmentPayload) =>
     axiosClient.post<StockMovement>('/inventory/adjust', payload).then((response) => response.data),
+  exportFile: (format: 'csv' | 'pdf', params?: { zoneId?: string; ingredientId?: string }) =>
+    downloadFile('/inventory/balances/export', { ...params, format }),
 }
 
 export const stockMovementsApi = {
   list: (params?: StockMovementFilter) =>
     axiosClient.get<StockMovement[]>('/stock-movements', { params }).then((response) => response.data),
+  exportFile: (format: 'csv' | 'pdf', params?: StockMovementFilter) =>
+    downloadFile('/stock-movements/export', { ...params, format }),
 }

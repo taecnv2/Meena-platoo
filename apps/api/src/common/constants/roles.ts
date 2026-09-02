@@ -37,6 +37,36 @@ const REFERENCE_DATA_READ: PermissionCode[] = [
   PERMISSION_CODES.INGREDIENTS_READ,
 ];
 
+/**
+ * "Export mirrors read": whichever `.read` codes a role already carries, it automatically
+ * gets the corresponding `.export` code too, via `withDerivedExportPermissions` below. This
+ * keeps the 6 role literals above untouched -- adding a 14th exportable resource later only
+ * needs one line here (plus one in permissions.ts), never per-role edits.
+ */
+const EXPORT_BY_READ: Partial<Record<PermissionCode, PermissionCode>> = {
+  [PERMISSION_CODES.ZONES_READ]: PERMISSION_CODES.ZONES_EXPORT,
+  [PERMISSION_CODES.CATEGORIES_READ]: PERMISSION_CODES.CATEGORIES_EXPORT,
+  [PERMISSION_CODES.UNITS_READ]: PERMISSION_CODES.UNITS_EXPORT,
+  [PERMISSION_CODES.SUPPLIERS_READ]: PERMISSION_CODES.SUPPLIERS_EXPORT,
+  [PERMISSION_CODES.INGREDIENTS_READ]: PERMISSION_CODES.INGREDIENTS_EXPORT,
+  [PERMISSION_CODES.INVENTORY_READ]: PERMISSION_CODES.INVENTORY_EXPORT,
+  [PERMISSION_CODES.REQUISITION_READ]: PERMISSION_CODES.REQUISITION_EXPORT,
+  [PERMISSION_CODES.TRANSFER_READ]: PERMISSION_CODES.TRANSFER_EXPORT,
+  [PERMISSION_CODES.STOCK_COUNT_READ]: PERMISSION_CODES.STOCK_COUNT_EXPORT,
+  [PERMISSION_CODES.USERS_READ]: PERMISSION_CODES.USERS_EXPORT,
+  [PERMISSION_CODES.ROLES_READ]: PERMISSION_CODES.ROLES_EXPORT,
+  [PERMISSION_CODES.PERMISSIONS_READ]: PERMISSION_CODES.PERMISSIONS_EXPORT,
+  [PERMISSION_CODES.REPORTS_READ]: PERMISSION_CODES.REPORTS_EXPORT,
+};
+
+function withDerivedExportPermissions(role: RoleDefinition): RoleDefinition {
+  const derived = role.permissions
+    .map((code) => EXPORT_BY_READ[code])
+    .filter((code): code is PermissionCode => Boolean(code))
+    .filter((code) => !role.permissions.includes(code));
+  return { ...role, permissions: [...role.permissions, ...derived] };
+}
+
 export const ROLE_DEFINITIONS: RoleDefinition[] = [
   {
     name: ROLE_NAMES.OWNER,
@@ -171,4 +201,4 @@ export const ROLE_DEFINITIONS: RoleDefinition[] = [
       ...REFERENCE_DATA_READ,
     ],
   },
-];
+].map(withDerivedExportPermissions);

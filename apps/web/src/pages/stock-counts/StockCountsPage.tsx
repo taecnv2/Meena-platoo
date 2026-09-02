@@ -15,6 +15,7 @@ import { Badge } from '@/components/Badge'
 import { Modal } from '@/components/Modal'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { DataTable, type DataTableColumn } from '@/components/DataTable'
+import { ExportButton } from '@/components/ExportButton'
 import { useToast } from '@/components/Toast'
 import { usePermission } from '@/hooks/usePermission'
 import { useAccessibleZoneIds } from '@/hooks/useZoneAccess'
@@ -41,6 +42,7 @@ export function StockCountsPage() {
   const toast = useToast()
   const canCreate = usePermission(PERMISSIONS.STOCK_COUNT_CREATE)
   const canApprove = usePermission(PERMISSIONS.STOCK_COUNT_APPROVE)
+  const canExport = usePermission(PERMISSIONS.STOCK_COUNT_EXPORT)
   const accessibleZoneIds = useAccessibleZoneIds()
   const [isCreating, setIsCreating] = useState(false)
   const [approving, setApproving] = useState<StockCount | null>(null)
@@ -130,11 +132,14 @@ export function StockCountsPage() {
           <h1 className="text-xl font-semibold text-text-primary">ตรวจนับสต๊อก</h1>
           <p className="text-sm text-text-secondary">บันทึกและอนุมัติการตรวจนับสต๊อก</p>
         </div>
-        {canCreate ? (
-          <Button onClick={openCreate}>
-            <Plus className="size-4" /> ตรวจนับใหม่
-          </Button>
-        ) : null}
+        <div className="flex items-center gap-2">
+          {canExport ? <ExportButton onExport={(format) => stockCountsApi.exportFile(format)} /> : null}
+          {canCreate ? (
+            <Button onClick={openCreate}>
+              <Plus className="size-4" /> ตรวจนับใหม่
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       <DataTable columns={columns} rows={stockCounts ?? []} rowKey={(row) => row._id} isLoading={isLoading} emptyMessage="ยังไม่มีรายการตรวจนับ" />

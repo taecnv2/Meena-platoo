@@ -12,6 +12,7 @@ import { Select } from '@/components/Select'
 import { Badge } from '@/components/Badge'
 import { Modal } from '@/components/Modal'
 import { DataTable, type DataTableColumn } from '@/components/DataTable'
+import { ExportButton } from '@/components/ExportButton'
 import { useToast } from '@/components/Toast'
 import { usePermission } from '@/hooks/usePermission'
 import { PERMISSIONS } from '@/constants/permissions'
@@ -34,6 +35,7 @@ export function ZonesPage() {
   const canCreate = usePermission(PERMISSIONS.ZONES_CREATE)
   const canUpdate = usePermission(PERMISSIONS.ZONES_UPDATE)
   const canDisable = usePermission(PERMISSIONS.ZONES_DISABLE)
+  const canExport = usePermission(PERMISSIONS.ZONES_EXPORT)
   const [editing, setEditing] = useState<Zone | 'new' | null>(null)
 
   const { data, isLoading } = useQuery({ queryKey: ['zones'], queryFn: zonesApi.list })
@@ -112,11 +114,14 @@ export function ZonesPage() {
           <h1 className="text-xl font-semibold text-text-primary">Zone</h1>
           <p className="text-sm text-text-secondary">จัดการโซนของร้าน (สามารถเพิ่มโซนใหม่ได้ตามต้องการ)</p>
         </div>
-        {canCreate ? (
-          <Button onClick={openCreate}>
-            <Plus className="size-4" /> เพิ่ม Zone
-          </Button>
-        ) : null}
+        <div className="flex items-center gap-2">
+          {canExport ? <ExportButton onExport={(format) => zonesApi.exportFile(format)} /> : null}
+          {canCreate ? (
+            <Button onClick={openCreate}>
+              <Plus className="size-4" /> เพิ่ม Zone
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       <DataTable columns={columns} rows={data ?? []} rowKey={(row) => row._id} isLoading={isLoading} emptyMessage="ยังไม่มี Zone" />

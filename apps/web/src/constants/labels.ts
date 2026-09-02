@@ -157,4 +157,5 @@ export const AUDIT_ACTION_LABEL: Record<AuditAction, string> = {
   STOCK_ADJUSTED: 'ปรับปรุงสต๊อก',
   PURCHASE_RECEIVED: 'รับสินค้าตามใบสั่งซื้อ',
   WASTE_CREATED: 'บันทึกของเสีย',
+  DATA_EXPORTED: 'ส่งออกข้อมูล',
 }

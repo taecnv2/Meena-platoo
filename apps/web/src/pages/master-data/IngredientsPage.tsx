@@ -14,6 +14,7 @@ import { Select } from '@/components/Select'
 import { Badge } from '@/components/Badge'
 import { Modal } from '@/components/Modal'
 import { DataTable, type DataTableColumn } from '@/components/DataTable'
+import { ExportButton } from '@/components/ExportButton'
 import { useToast } from '@/components/Toast'
 import { usePermission } from '@/hooks/usePermission'
 import { PERMISSIONS } from '@/constants/permissions'
@@ -37,6 +38,7 @@ export function IngredientsPage() {
   const toast = useToast()
   const canCreate = usePermission(PERMISSIONS.INGREDIENTS_CREATE)
   const canUpdate = usePermission(PERMISSIONS.INGREDIENTS_UPDATE)
+  const canExport = usePermission(PERMISSIONS.INGREDIENTS_EXPORT)
   const [editing, setEditing] = useState<Ingredient | 'new' | null>(null)
 
   const { data, isLoading } = useQuery({ queryKey: ['ingredients'], queryFn: ingredientsApi.list })
@@ -118,11 +120,14 @@ export function IngredientsPage() {
           <h1 className="text-xl font-semibold text-text-primary">วัตถุดิบ</h1>
           <p className="text-sm text-text-secondary">จัดการข้อมูลวัตถุดิบทั้งหมด</p>
         </div>
-        {canCreate ? (
-          <Button onClick={openCreate}>
-            <Plus className="size-4" /> เพิ่มวัตถุดิบ
-          </Button>
-        ) : null}
+        <div className="flex items-center gap-2">
+          {canExport ? <ExportButton onExport={(format) => ingredientsApi.exportFile(format)} /> : null}
+          {canCreate ? (
+            <Button onClick={openCreate}>
+              <Plus className="size-4" /> เพิ่มวัตถุดิบ
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       <DataTable columns={columns} rows={data ?? []} rowKey={(row) => row._id} isLoading={isLoading} emptyMessage="ยังไม่มีวัตถุดิบ" />
