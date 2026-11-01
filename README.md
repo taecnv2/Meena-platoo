@@ -8,7 +8,7 @@
 
 ```bash
 npm install
-npm run seed      # สิทธิ์ / บทบาท / Zone / หมวดหมู่และหน่วยพื้นฐาน / ผู้ใช้เจ้าของ
+npm run seed      # สิทธิ์ / บทบาท / Zone / หมวดหมู่ หน่วย และรายการวัตถุดิบตั้งต้น / ผู้ใช้เจ้าของ
 npm run dev:api   # http://localhost:3000/api
 npm run dev:web   # http://localhost:5173
 ```

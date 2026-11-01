@@ -17,7 +17,7 @@ npm run dev:api        # apps/api start:dev (Nest watch mode, port 3000)
 npm run dev:web        # apps/web dev (Vite, port 5173)
 npm run build:api
 npm run build:web
-npm run seed           # apps/api seed script — creates permissions/roles/zones/owner user
+npm run seed           # apps/api seed script — permissions/roles/zones, master categories/units/ingredients, owner user
 npm run lint           # lints both api and web
 ```
 
@@ -85,6 +85,8 @@ Permission codes follow `resource.action` (e.g. `requisition.approve`) and must 
 **Imports** (`imports/`): `POST /imports/ingredients { rows, dryRun }` — the same plan runs for preview and commit; rows are independent (an error skips only that row); missing categories/units are created only if the user has their create permission; opening balances use `InventoryService.setBalance` (`referenceType: 'IMPORT'`) and are zone-scoped per row in the service because one request can name many zones. The web column contract is `apps/web/src/features/import/ingredientImportColumns.ts`, documented for users in `docs/USER_GUIDE.md` — keep the two in sync.
 
 **Operational reports** (`reports/operational-reports.service.ts`): `/reports/ledger` (daily opening/in/out/closing rebuilt backwards from current ZoneStock, `ledger.util.ts`; transfers excluded when no zone filter), `/reports/supplier-statement` (STOCK_IN movements carrying `supplierId`), `/reports/consignment` (ingredients with `consignmentOwner`; sales = STOCK_OUT with reason `SALE`).
+
+**Seed master data** (`database/seed-data/`): `master-data.ts` holds the category/unit seeds, `master-ingredients.ts` the restaurant's 205-item ingredient list (stable codes like `ALC-001`, first tag = where it is kept). Seeding only inserts rows whose code *and* name are both new (units/categories likewise match an existing record by name), never updates existing records; `SEED_REPLACE_INGREDIENTS=true` sets ingredients missing from the list to INACTIVE (never deletes). `master-ingredients.spec.ts` guards uniqueness and references -- add new items with new codes rather than renumbering.
 
 **Response/error conventions**: `TransformInterceptor` wraps all successful responses as `{ success: true, data }`; `HttpExceptionFilter` normalizes error responses. User-facing exception messages (validation, `ForbiddenException`, etc.) are written in Thai (see `common/guards/*.guard.ts`) — keep this convention for new endpoints per `plan.md` §63.
 
