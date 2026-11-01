@@ -15,6 +15,8 @@ import {
   RequisitionDocument,
 } from '../requisitions/schemas/requisition.schema';
 import {
+  IN_MOVEMENT_TYPES,
+  OUT_MOVEMENT_TYPES,
   StockMovement,
   StockMovementDocument,
 } from '../stock-movements/schemas/stock-movement.schema';
@@ -546,7 +548,7 @@ export class ReportsService {
       }>([
         {
           $match: {
-            movementType: { $in: ['STOCK_IN', 'TRANSFER_IN', 'ADJUSTMENT_IN'] },
+            movementType: { $in: IN_MOVEMENT_TYPES },
             createdAt: { $gte: range.from, $lte: range.to },
             ...movementZoneFilter,
           },
@@ -567,7 +569,7 @@ export class ReportsService {
         {
           $match: {
             movementType: {
-              $in: ['STOCK_OUT', 'TRANSFER_OUT', 'ADJUSTMENT_OUT', 'WASTE'],
+              $in: OUT_MOVEMENT_TYPES,
             },
             createdAt: { $gte: range.from, $lte: range.to },
             ...movementZoneFilter,
@@ -713,7 +715,14 @@ export class ReportsService {
                 {
                   $group: {
                     _id: '$items.ingredientId',
-                    quantity: { $sum: '$items.orderedQuantity' },
+                    quantity: {
+                      $sum: {
+                        $multiply: [
+                          '$items.orderedQuantity',
+                          { $ifNull: ['$items.conversionFactor', 1] },
+                        ],
+                      },
+                    },
                     value: {
                       $sum: {
                         $multiply: [
@@ -1139,10 +1148,7 @@ export class ReportsService {
                   $sum: {
                     $cond: [
                       {
-                        $in: [
-                          '$movementType',
-                          ['STOCK_IN', 'TRANSFER_IN', 'ADJUSTMENT_IN'],
-                        ],
+                        $in: ['$movementType', IN_MOVEMENT_TYPES],
                       },
                       '$totalCost',
                       { $multiply: ['$totalCost', -1] },

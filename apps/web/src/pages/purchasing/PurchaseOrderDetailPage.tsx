@@ -4,9 +4,12 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { purchasingApi } from '@/api/endpoints/purchasing'
 import { ingredientsApi } from '@/api/endpoints/ingredients'
 import { suppliersApi } from '@/api/endpoints/suppliers'
+import { unitsApi } from '@/api/endpoints/units'
+import { zonesApi } from '@/api/endpoints/zones'
 import { getErrorMessage } from '@/api/errors'
 import { Button } from '@/components/Button'
 import { Input } from '@/components/Input'
+import { Select } from '@/components/Select'
 import { Badge } from '@/components/Badge'
 import { Card, CardBody, CardHeader } from '@/components/Card'
 import { Modal } from '@/components/Modal'
@@ -14,9 +17,12 @@ import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { LoadingState } from '@/components/LoadingState'
 import { useToast } from '@/components/Toast'
 import { usePermission } from '@/hooks/usePermission'
+import { useAccessibleZoneIds } from '@/hooks/useZoneAccess'
 import { PERMISSIONS } from '@/constants/permissions'
+import { WAREHOUSE_ZONE_CODE } from '@/constants/zones'
 import { PURCHASE_ORDER_STATUS_COLOR, PURCHASE_ORDER_STATUS_LABEL } from '@/constants/labels'
-import { formatCurrency, formatDateTime, formatQuantity } from '@/utils/format'
+import { formatCurrency, formatDateTime, formatNumber, formatQuantity } from '@/utils/format'
+import type { PurchaseOrderItem } from '@/types/entities'
 
 export function PurchaseOrderDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -32,7 +38,9 @@ export function PurchaseOrderDetailPage() {
   const [rejectionReason, setRejectionReason] = useState('')
   const [isConfirmingSubmit, setIsConfirmingSubmit] = useState(false)
   const [isConfirmingApprove, setIsConfirmingApprove] = useState(false)
-  const [isConfirmingReceive, setIsConfirmingReceive] = useState(false)
+  const [isReceiving, setIsReceiving] = useState(false)
+  const [receiveZoneId, setReceiveZoneId] = useState('')
+  const [invoiceNo, setInvoiceNo] = useState('')
   const [isConfirmingCancel, setIsConfirmingCancel] = useState(false)
   const [isMutating, setIsMutating] = useState(false)
 
@@ -43,9 +51,39 @@ export function PurchaseOrderDetailPage() {
   })
   const { data: ingredients } = useQuery({ queryKey: ['ingredients'], queryFn: ingredientsApi.list })
   const { data: suppliers } = useQuery({ queryKey: ['suppliers'], queryFn: suppliersApi.list })
+  const { data: units } = useQuery({ queryKey: ['units'], queryFn: unitsApi.list })
+  const { data: zones } = useQuery({ queryKey: ['zones'], queryFn: zonesApi.list })
+  const accessibleZoneIds = useAccessibleZoneIds()
 
-  const ingredientMap = useMemo(() => new Map((ingredients ?? []).map((i) => [i._id, i.name])), [ingredients])
+  const ingredientById = useMemo(() => new Map((ingredients ?? []).map((i) => [i._id, i])), [ingredients])
   const supplierMap = useMemo(() => new Map((suppliers ?? []).map((s) => [s._id, s.name])), [suppliers])
+  const unitById = useMemo(() => new Map((units ?? []).map((u) => [u._id, u])), [units])
+  const unitByCode = useMemo(() => new Map((units ?? []).map((u) => [u.code, u])), [units])
+
+  // Supplier goods may only land in the WAREHOUSE or a zone flagged allowReceiving that this user can access.
+  const receivingZones = useMemo(
+    () =>
+      (zones ?? []).filter(
+        (zone) =>
+          zone.status === 'ACTIVE' &&
+          (zone.code === WAREHOUSE_ZONE_CODE || zone.allowReceiving) &&
+          (!accessibleZoneIds || accessibleZoneIds.includes(zone._id)),
+      ),
+    [zones, accessibleZoneIds],
+  )
+
+  /** Display name of the unit a PO line was ordered in (ลัง, กก. ...), falling back to the stored code. */
+  const lineUnitName = (item: PurchaseOrderItem) =>
+    (item.unitId ? unitById.get(item.unitId)?.name : undefined) ?? unitByCode.get(item.unit)?.name ?? item.unit
+
+  /** "= 12 ขวด" for a line ordered in a pack unit; null when it is already the base unit. */
+  const lineConversion = (item: PurchaseOrderItem) => {
+    const factor = item.conversionFactor ?? 1
+    if (factor === 1) return null
+    const baseUnitId = ingredientById.get(item.ingredientId)?.baseUnitId
+    const baseName = baseUnitId ? unitById.get(baseUnitId)?.name : undefined
+    return baseName ? `1 ${lineUnitName(item)} = ${formatNumber(factor)} ${baseName}` : null
+  }
 
   const invalidate = () =>
     Promise.all([
@@ -99,8 +137,20 @@ export function PurchaseOrderDetailPage() {
     }
   }
 
+  // Default to the PO's delivery zone (WAREHOUSE) when the user may receive there, else the first allowed zone.
+  const defaultReceiveZoneId = receivingZones.some((zone) => zone._id === purchaseOrder?.deliveryZoneId)
+    ? (purchaseOrder?.deliveryZoneId ?? '')
+    : (receivingZones[0]?._id ?? '')
+  const selectedReceiveZoneId = receivingZones.some((zone) => zone._id === receiveZoneId) ? receiveZoneId : defaultReceiveZoneId
+
+  const openReceive = () => {
+    setReceiveZoneId('')
+    setInvoiceNo('')
+    setIsReceiving(true)
+  }
+
   const handleReceive = async () => {
-    if (!purchaseOrder) return
+    if (!purchaseOrder || !selectedReceiveZoneId) return
     const items = purchaseOrder.items
       .filter((item) => item.receivedQuantity < item.orderedQuantity)
       .map((item) => ({ ingredientId: item.ingredientId }))
@@ -110,10 +160,14 @@ export function PurchaseOrderDetailPage() {
     }
     setIsMutating(true)
     try {
-      await purchasingApi.receive(purchaseOrder._id, { items })
+      await purchasingApi.receive(purchaseOrder._id, {
+        items,
+        zoneId: selectedReceiveZoneId,
+        invoiceNo: invoiceNo.trim() || undefined,
+      })
       toast.show('success', 'รับสินค้าตามใบสั่งซื้อสำเร็จ')
       await invalidate()
-      setIsConfirmingReceive(false)
+      setIsReceiving(false)
     } catch (error) {
       toast.show('error', getErrorMessage(error))
     } finally {
@@ -165,7 +219,7 @@ export function PurchaseOrderDetailPage() {
             </Button>
           ) : null}
           {canReceive && ['APPROVED', 'PARTIALLY_RECEIVED'].includes(purchaseOrder.status) ? (
-            <Button onClick={() => setIsConfirmingReceive(true)}>รับสินค้า</Button>
+            <Button onClick={openReceive}>รับสินค้า</Button>
           ) : null}
           {canCreate && ['DRAFT', 'PENDING'].includes(purchaseOrder.status) ? (
             <Button variant="secondary" onClick={() => setIsConfirmingCancel(true)}>
@@ -189,22 +243,29 @@ export function PurchaseOrderDetailPage() {
           <span className="font-medium text-text-primary">รายการวัตถุดิบ</span>
         </CardHeader>
         <CardBody className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-left text-sm">
+          <table className="w-full min-w-[720px] text-left text-sm">
             <thead className="text-text-secondary">
               <tr>
                 <th className="py-2 font-medium">วัตถุดิบ</th>
+                <th className="py-2 font-medium">หน่วยที่สั่ง</th>
                 <th className="py-2 font-medium">สั่งซื้อ</th>
                 <th className="py-2 font-medium">รับแล้ว</th>
-                <th className="py-2 font-medium">ราคาต่อหน่วย</th>
+                <th className="py-2 font-medium">ราคาต่อหน่วยที่สั่ง</th>
                 <th className="py-2 font-medium">มูลค่ารวม</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {purchaseOrder.items.map((item) => (
                 <tr key={item.ingredientId}>
-                  <td className="py-2">{ingredientMap.get(item.ingredientId) ?? '-'}</td>
-                  <td className="py-2">{formatQuantity(item.orderedQuantity, item.unit)}</td>
-                  <td className="py-2">{formatQuantity(item.receivedQuantity, item.unit)}</td>
+                  <td className="py-2">{ingredientById.get(item.ingredientId)?.name ?? '-'}</td>
+                  <td className="py-2">
+                    <div className="flex flex-col">
+                      <span>{lineUnitName(item)}</span>
+                      {lineConversion(item) ? <span className="text-xs text-text-secondary">{lineConversion(item)}</span> : null}
+                    </div>
+                  </td>
+                  <td className="py-2">{formatQuantity(item.orderedQuantity, lineUnitName(item))}</td>
+                  <td className="py-2">{formatQuantity(item.receivedQuantity, lineUnitName(item))}</td>
                   <td className="py-2">{formatCurrency(item.unitCost)}</td>
                   <td className="py-2">{formatCurrency(item.unitCost * item.orderedQuantity)}</td>
                 </tr>
@@ -234,15 +295,56 @@ export function PurchaseOrderDetailPage() {
         onCancel={() => setIsConfirmingApprove(false)}
       />
 
-      <ConfirmDialog
-        isOpen={isConfirmingReceive}
+      <Modal
+        isOpen={isReceiving}
+        onClose={() => setIsReceiving(false)}
         title="รับสินค้าตามใบสั่งซื้อ"
-        message={`รับสินค้าเข้าคลังสินค้าให้ครบตามจำนวนที่สั่งซื้อซึ่งยังไม่ได้รับสำหรับใบสั่งซื้อ ${purchaseOrder.code}?`}
-        confirmLabel="ยืนยันการรับสินค้า"
-        isLoading={isMutating}
-        onConfirm={() => void handleReceive()}
-        onCancel={() => setIsConfirmingReceive(false)}
-      />
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setIsReceiving(false)} disabled={isMutating}>
+              ยกเลิก
+            </Button>
+            <Button onClick={() => void handleReceive()} isLoading={isMutating} disabled={!selectedReceiveZoneId}>
+              ยืนยันการรับสินค้า
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-text-secondary">
+            รับสินค้าให้ครบตามจำนวนที่ยังไม่ได้รับของใบสั่งซื้อ {purchaseOrder.code}
+          </p>
+          <ul className="flex flex-col gap-1 rounded-lg bg-slate-50 px-3 py-2 text-sm">
+            {purchaseOrder.items
+              .filter((item) => item.receivedQuantity < item.orderedQuantity)
+              .map((item) => (
+                <li key={item.ingredientId} className="flex justify-between gap-3">
+                  <span>{ingredientById.get(item.ingredientId)?.name ?? '-'}</span>
+                  <span className="font-medium">
+                    {formatQuantity(item.orderedQuantity - item.receivedQuantity, lineUnitName(item))}
+                  </span>
+                </li>
+              ))}
+          </ul>
+          {receivingZones.length > 0 ? (
+            <Select
+              label="รับเข้า Zone"
+              id="receive-zone"
+              options={receivingZones.map((zone) => ({ value: zone._id, label: zone.name }))}
+              value={selectedReceiveZoneId}
+              onChange={(event) => setReceiveZoneId(event.target.value)}
+            />
+          ) : (
+            <p className="text-sm text-danger">คุณไม่มีสิทธิ์ใน Zone ที่รับสินค้าได้ กรุณาติดต่อผู้ดูแลระบบ</p>
+          )}
+          <Input
+            label="เลขที่บิล/ใบส่งของ (ถ้ามี)"
+            id="receive-invoice-no"
+            value={invoiceNo}
+            onChange={(event) => setInvoiceNo(event.target.value)}
+          />
+        </div>
+      </Modal>
 
       <ConfirmDialog
         isOpen={isConfirmingCancel}

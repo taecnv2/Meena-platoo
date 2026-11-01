@@ -30,6 +30,7 @@ export const PERMISSION_CODES = {
   INGREDIENTS_READ: 'ingredients.read',
   INGREDIENTS_CREATE: 'ingredients.create',
   INGREDIENTS_UPDATE: 'ingredients.update',
+  INGREDIENTS_IMPORT: 'ingredients.import',
 
   INVENTORY_READ: 'inventory.read',
   INVENTORY_CREATE: 'inventory.create',
@@ -62,6 +63,9 @@ export const PERMISSION_CODES = {
   WASTE_READ: 'waste.read',
   WASTE_CREATE: 'waste.create',
   WASTE_APPROVE: 'waste.approve',
+
+  PRODUCTION_READ: 'production.read',
+  PRODUCTION_CREATE: 'production.create',
 
   REPORTS_READ: 'reports.read',
 
@@ -283,6 +287,13 @@ export const PERMISSION_REGISTRY: PermissionRegistryEntry[] = [
     module: 'INGREDIENT',
     description: 'Allows user to update ingredients',
   },
+  {
+    code: PERMISSION_CODES.INGREDIENTS_IMPORT,
+    name: 'นำเข้าวัตถุดิบจาก Excel',
+    module: 'INGREDIENT',
+    description:
+      'Allows user to bulk import ingredients (and opening balances) from Excel/CSV',
+  },
 
   {
     code: PERMISSION_CODES.INVENTORY_READ,
@@ -445,6 +456,20 @@ export const PERMISSION_REGISTRY: PermissionRegistryEntry[] = [
     name: 'อนุมัติของเสีย',
     module: 'WASTE',
     description: 'Allows user to approve or reject waste records',
+  },
+
+  {
+    code: PERMISSION_CODES.PRODUCTION_READ,
+    name: 'ดูการแปรรูป/แบ่ง Portion',
+    module: 'PRODUCTION',
+    description: 'Allows user to view production (portioning) batches',
+  },
+  {
+    code: PERMISSION_CODES.PRODUCTION_CREATE,
+    name: 'บันทึกการแปรรูป/แบ่ง Portion',
+    module: 'PRODUCTION',
+    description:
+      'Allows user to convert raw ingredients into portioned items within a zone',
   },
 
   {

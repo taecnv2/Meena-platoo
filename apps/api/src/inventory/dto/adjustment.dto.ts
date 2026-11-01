@@ -21,6 +21,11 @@ export class AdjustmentDto {
   @NotEquals(0)
   quantityDelta!: number;
 
+  /** Unit `quantityDelta` is expressed in. Defaults to the ingredient's base unit. */
+  @IsOptional()
+  @IsMongoId()
+  unitId?: string;
+
   @IsString()
   @MinLength(1)
   reason!: string;

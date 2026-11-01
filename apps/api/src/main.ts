@@ -1,5 +1,6 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { ConfigService } from '@nestjs/config';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
@@ -9,7 +10,9 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
 import type { AppConfig } from './config/configuration';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  // Spreadsheet imports post a few thousand rows of JSON at once.
+  app.useBodyParser('json', { limit: '5mb' });
   const configService = app.get(ConfigService<AppConfig, true>);
 
   app.use(helmet());

@@ -5,7 +5,7 @@ import type { Transfer } from '@/types/entities'
 export interface CreateTransferPayload {
   fromZoneId: string
   toZoneId: string
-  items: Array<{ ingredientId: string; quantity: number }>
+  items: Array<{ ingredientId: string; quantity: number; unitId?: string }>
 }
 
 export interface TransfersFilter {

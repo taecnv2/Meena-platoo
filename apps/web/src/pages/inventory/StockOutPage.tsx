@@ -5,24 +5,40 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { inventoryApi, stockMovementsApi } from '@/api/endpoints/inventory'
 import { ingredientsApi } from '@/api/endpoints/ingredients'
+import { unitsApi } from '@/api/endpoints/units'
 import { zonesApi } from '@/api/endpoints/zones'
 import { getErrorMessage } from '@/api/errors'
 import { Button } from '@/components/Button'
 import { Input } from '@/components/Input'
 import { Select } from '@/components/Select'
+import { SearchableSelect } from '@/components/SearchableSelect'
+import { UnitSelect } from '@/components/UnitSelect'
 import { Card, CardBody } from '@/components/Card'
 import { DataTable, type DataTableColumn } from '@/components/DataTable'
 import { DateRangeFilter } from '@/components/DateRangeFilter'
 import { useToast } from '@/components/Toast'
 import { useAccessibleZoneIds } from '@/hooks/useZoneAccess'
-import { formatDateTime, formatQuantity } from '@/utils/format'
+import { STOCK_OUT_REASON_LABEL } from '@/constants/labels'
+import { formatDateTime } from '@/utils/format'
 import type { DateRangeValue } from '@/utils/dateRange'
-import type { StockMovement } from '@/types/entities'
+import { STOCK_OUT_REASONS, type StockMovement } from '@/types/entities'
+import {
+  buildUnitNameByCode,
+  formatKeyedQuantity,
+  formatMovementReason,
+  formatWeight,
+  optionalAmountSchema,
+  toOptionalNumber,
+  useResetUnitOnIngredientChange,
+} from './components/inventoryFormat'
 
 const formSchema = z.object({
   ingredientId: z.string().min(1, 'กรุณาเลือกวัตถุดิบ'),
   zoneId: z.string().min(1, 'กรุณาเลือก Zone'),
   quantity: z.coerce.number().positive('กรุณากรอกจำนวนที่มากกว่า 0'),
+  unitId: z.string().optional(),
+  reason: z.enum(STOCK_OUT_REASONS),
+  weight: optionalAmountSchema,
   remark: z.string().optional(),
 })
 type FormValues = z.infer<typeof formSchema>
@@ -34,8 +50,10 @@ export function StockOutPage() {
   const [dateRange, setDateRange] = useState<DateRangeValue>({ dateFrom: null, dateTo: null })
   const { data: ingredients } = useQuery({ queryKey: ['ingredients'], queryFn: ingredientsApi.list })
   const { data: zones } = useQuery({ queryKey: ['zones'], queryFn: zonesApi.list })
-  const ingredientMap = useMemo(() => new Map((ingredients ?? []).map((i) => [i._id, i.name])), [ingredients])
+  const { data: units } = useQuery({ queryKey: ['units'], queryFn: unitsApi.list })
+  const ingredientMap = useMemo(() => new Map((ingredients ?? []).map((i) => [i._id, i])), [ingredients])
   const zoneMap = useMemo(() => new Map((zones ?? []).map((z) => [z._id, z.name])), [zones])
+  const unitNameByCode = useMemo(() => buildUnitNameByCode(units), [units])
   const { data: history, isLoading: isHistoryLoading } = useQuery({
     queryKey: ['stock-movements', 'STOCK_OUT', dateRange.dateFrom, dateRange.dateTo],
     queryFn: () =>
@@ -52,15 +70,32 @@ export function StockOutPage() {
     register,
     handleSubmit,
     reset,
+    setValue,
+    watch,
     formState: { errors, isSubmitting },
-  } = useForm<FormValues>({ resolver: zodResolver(formSchema) })
+  } = useForm<FormValues>({ resolver: zodResolver(formSchema), defaultValues: { unitId: '', reason: 'KITCHEN_USE' } })
+
+  const selectedIngredient = ingredientMap.get(watch('ingredientId') ?? '')
+  const quantity = Number(watch('quantity')) || 0
+  useResetUnitOnIngredientChange(selectedIngredient, units, (unitId) => setValue('unitId', unitId))
 
   const onSubmit = async (values: FormValues) => {
     try {
-      await inventoryApi.stockOut(values)
+      await inventoryApi.stockOut({
+        ingredientId: values.ingredientId,
+        zoneId: values.zoneId,
+        quantity: values.quantity,
+        unitId: values.unitId || undefined,
+        reason: values.reason,
+        weight: toOptionalNumber(values.weight),
+        remark: values.remark?.trim() || undefined,
+      })
       toast.show('success', 'จ่ายสินค้าออกจากสต๊อกสำเร็จ')
-      reset({ ingredientId: '', zoneId: values.zoneId, quantity: 0, remark: '' })
-      await queryClient.invalidateQueries({ queryKey: ['stock-movements'] })
+      reset({ ingredientId: '', zoneId: values.zoneId, quantity: 0, unitId: '', reason: values.reason, weight: '', remark: '' })
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['stock-movements'] }),
+        queryClient.invalidateQueries({ queryKey: ['inventory', 'balances'] }),
+      ])
     } catch (error) {
       toast.show('error', getErrorMessage(error))
     }
@@ -68,22 +103,24 @@ export function StockOutPage() {
 
   const historyColumns: Array<DataTableColumn<StockMovement>> = [
     { key: 'date', header: 'วันที่', render: (row) => formatDateTime(row.createdAt) },
-    { key: 'ingredient', header: 'วัตถุดิบ', render: (row) => ingredientMap.get(row.ingredientId) ?? '-' },
+    { key: 'ingredient', header: 'วัตถุดิบ', render: (row) => ingredientMap.get(row.ingredientId)?.name ?? '-' },
     { key: 'zone', header: 'Zone', render: (row) => zoneMap.get(row.zoneId) ?? '-' },
-    { key: 'quantity', header: 'จำนวน', render: (row) => formatQuantity(row.quantity, row.unit) },
-    { key: 'remark', header: 'หมายเหตุ', render: (row) => row.remark ?? '-' },
+    { key: 'quantity', header: 'จำนวน', render: (row) => formatKeyedQuantity(row, unitNameByCode) },
+    { key: 'reason', header: 'เหตุผล', render: (row) => formatMovementReason(row.reason) ?? '-' },
+    { key: 'weight', header: 'น้ำหนัก (กก.)', render: (row) => formatWeight(row.weight) },
+    { key: 'remark', header: 'หมายเหตุ', render: (row) => row.remark || '-' },
   ]
 
   return (
     <div className="flex flex-col gap-4">
       <div>
         <h1 className="text-xl font-semibold text-text-primary">จ่ายสินค้า</h1>
-        <p className="text-sm text-text-secondary">บันทึกการจ่ายวัตถุดิบออกจากสต๊อก</p>
+        <p className="text-sm text-text-secondary">บันทึกการจ่ายวัตถุดิบออกจากสต๊อก เลือกหน่วยที่จ่ายจริงได้ ระบบจะแปลงเป็นหน่วยหลักให้</p>
       </div>
       <Card className="max-w-lg">
         <CardBody>
           <form onSubmit={(event) => void handleSubmit(onSubmit)(event)} className="flex flex-col gap-4">
-            <Select
+            <SearchableSelect
               label="วัตถุดิบ"
               placeholder="เลือกวัตถุดิบ"
               options={(ingredients ?? []).map((i) => ({ value: i._id, label: `${i.name} (${i.code})` }))}
@@ -97,7 +134,30 @@ export function StockOutPage() {
               error={errors.zoneId?.message}
               {...register('zoneId')}
             />
-            <Input label="จำนวน" type="number" step="0.01" error={errors.quantity?.message} {...register('quantity')} />
+            <div className="grid grid-cols-2 gap-3">
+              <Input label="จำนวน" type="number" step="0.01" inputMode="decimal" error={errors.quantity?.message} {...register('quantity')} />
+              <UnitSelect
+                ingredient={selectedIngredient}
+                units={units}
+                quantity={quantity}
+                value={watch('unitId')}
+                {...register('unitId')}
+              />
+            </div>
+            <Select
+              label="เหตุผลการเบิก"
+              options={STOCK_OUT_REASONS.map((reason) => ({ value: reason, label: STOCK_OUT_REASON_LABEL[reason] }))}
+              error={errors.reason?.message}
+              {...register('reason')}
+            />
+            <Input
+              label="น้ำหนัก (กก., ไม่บังคับ)"
+              type="number"
+              step="0.01"
+              inputMode="decimal"
+              error={errors.weight?.message}
+              {...register('weight')}
+            />
             <Input label="หมายเหตุ" {...register('remark')} />
             <Button type="submit" isLoading={isSubmitting}>
               บันทึกจ่ายสินค้า

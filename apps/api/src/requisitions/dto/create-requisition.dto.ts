@@ -4,6 +4,7 @@ import {
   IsArray,
   IsMongoId,
   IsNumber,
+  IsOptional,
   IsPositive,
   ValidateNested,
 } from 'class-validator';
@@ -16,6 +17,11 @@ export class CreateRequisitionItemDto {
   @IsNumber()
   @IsPositive()
   requestedQuantity!: number;
+
+  /** Unit `requestedQuantity` is entered in; converted to the base unit on create. */
+  @IsOptional()
+  @IsMongoId()
+  unitId?: string;
 }
 
 export class CreateRequisitionDto {

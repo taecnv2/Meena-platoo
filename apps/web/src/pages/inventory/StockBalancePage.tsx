@@ -4,6 +4,7 @@ import { inventoryApi } from '@/api/endpoints/inventory'
 import { ingredientsApi } from '@/api/endpoints/ingredients'
 import { unitsApi } from '@/api/endpoints/units'
 import { zonesApi } from '@/api/endpoints/zones'
+import { Input } from '@/components/Input'
 import { Select } from '@/components/Select'
 import { Badge } from '@/components/Badge'
 import { DataTable, type DataTableColumn } from '@/components/DataTable'
@@ -12,12 +13,14 @@ import { useAccessibleZoneIds } from '@/hooks/useZoneAccess'
 import { usePermission } from '@/hooks/usePermission'
 import { PERMISSIONS } from '@/constants/permissions'
 import { formatQuantity } from '@/utils/format'
+import { formatPackBreakdown } from '@/utils/units'
 import type { ZoneStock } from '@/types/entities'
 
 export function StockBalancePage() {
   const canExport = usePermission(PERMISSIONS.INVENTORY_EXPORT)
   const accessibleZoneIds = useAccessibleZoneIds()
   const [zoneFilter, setZoneFilter] = useState('')
+  const [search, setSearch] = useState('')
 
   const { data: zones } = useQuery({ queryKey: ['zones'], queryFn: zonesApi.list })
   const { data: ingredients } = useQuery({ queryKey: ['ingredients'], queryFn: ingredientsApi.list })
@@ -36,10 +39,24 @@ export function StockBalancePage() {
     [zones, accessibleZoneIds],
   )
 
-  const rows = useMemo(
-    () => (balances ?? []).filter((b) => b.quantity > 0 || zoneFilter),
-    [balances, zoneFilter],
-  )
+  const rows = useMemo(() => {
+    const keyword = search.trim().toLowerCase()
+    return (balances ?? []).filter((b) => {
+      if (!(b.quantity > 0 || zoneFilter)) return false
+      if (!keyword) return true
+      const ingredient = ingredientMap.get(b.ingredientId)
+      return (
+        (ingredient?.name.toLowerCase().includes(keyword) ?? false) ||
+        (ingredient?.code.toLowerCase().includes(keyword) ?? false)
+      )
+    })
+  }, [balances, zoneFilter, search, ingredientMap])
+
+  const getBaseUnitName = (row: ZoneStock) => {
+    const ingredient = ingredientMap.get(row.ingredientId)
+    return ingredient ? (unitMap.get(ingredient.baseUnitId) ?? '') : ''
+  }
+  const getPackBreakdown = (row: ZoneStock) => formatPackBreakdown(row.quantity, ingredientMap.get(row.ingredientId), units)
 
   const columns: Array<DataTableColumn<ZoneStock>> = [
     { key: 'ingredient', header: 'วัตถุดิบ', render: (row) => ingredientMap.get(row.ingredientId)?.name ?? '-' },
@@ -48,9 +65,13 @@ export function StockBalancePage() {
       key: 'quantity',
       header: 'จำนวนคงเหลือ',
       render: (row) => {
-        const ingredient = ingredientMap.get(row.ingredientId)
-        const unitName = ingredient ? (unitMap.get(ingredient.baseUnitId) ?? '') : ''
-        return formatQuantity(row.quantity, unitName)
+        const breakdown = getPackBreakdown(row)
+        return (
+          <div className="flex flex-col">
+            <span>{formatQuantity(row.quantity, getBaseUnitName(row))}</span>
+            {breakdown ? <span className="text-xs text-text-secondary">= {breakdown}</span> : null}
+          </div>
+        )
       },
     },
     {
@@ -68,7 +89,7 @@ export function StockBalancePage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold text-text-primary">สต๊อกคงเหลือ</h1>
           <p className="text-sm text-text-secondary">ดูจำนวนวัตถุดิบคงเหลือแยกตาม Zone</p>
@@ -78,8 +99,17 @@ export function StockBalancePage() {
         ) : null}
       </div>
 
-      <div className="max-w-xs">
+      <div className="grid grid-cols-1 gap-3 sm:max-w-2xl sm:grid-cols-2">
+        <Input
+          id="stock-balance-search"
+          label="ค้นหาวัตถุดิบ"
+          type="search"
+          placeholder="ชื่อหรือรหัสวัตถุดิบ"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+        />
         <Select
+          id="stock-balance-zone"
           label="Zone"
           placeholder="ทุก Zone ที่มีสิทธิ์เข้าถึง"
           options={accessibleZones.map((z) => ({ value: z._id, label: z.name }))}
@@ -88,7 +118,13 @@ export function StockBalancePage() {
         />
       </div>
 
-      <DataTable columns={columns} rows={rows} rowKey={(row) => row._id} isLoading={isLoading} emptyMessage="ไม่มีข้อมูลสต๊อก" />
+      <DataTable
+        columns={columns}
+        rows={rows}
+        rowKey={(row) => row._id}
+        isLoading={isLoading}
+        emptyMessage={search.trim() ? 'ไม่พบวัตถุดิบที่ค้นหา' : 'ไม่มีข้อมูลสต๊อก'}
+      />
     </div>
   )
 }

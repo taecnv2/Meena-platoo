@@ -39,6 +39,9 @@ export class ZoneScopeGuard implements CanActivate {
     }
 
     const targetZoneId = await this.resolveZoneId(options, request);
+    if (!targetZoneId && options.optional) {
+      return true;
+    }
     if (!targetZoneId) {
       throw new BadRequestException('ไม่พบข้อมูล Zone ในคำขอ');
     }

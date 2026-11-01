@@ -36,6 +36,11 @@ import { PurchaseReportPage } from '@/pages/reports/PurchaseReportPage'
 import { WasteReportPage } from '@/pages/reports/WasteReportPage'
 import { CostReportPage } from '@/pages/reports/CostReportPage'
 import { ComparisonReportPage } from '@/pages/reports/ComparisonReportPage'
+import { LedgerReportPage } from '@/pages/reports/LedgerReportPage'
+import { SupplierStatementPage } from '@/pages/reports/SupplierStatementPage'
+import { ConsignmentReportPage } from '@/pages/reports/ConsignmentReportPage'
+import { ImportIngredientsPage } from '@/pages/master-data/ImportIngredientsPage'
+import { ProductionPage } from '@/pages/production/ProductionPage'
 import { UsersPage } from '@/pages/management/UsersPage'
 import { RolesPage } from '@/pages/management/RolesPage'
 import { AuditLogListPage } from '@/pages/management/AuditLogListPage'
@@ -105,7 +110,14 @@ export function AppRouter() {
         <Route path="/waste" element={<WastePage />} />
       </Route>
 
+      <Route element={<ProtectedRoute permission={PERMISSIONS.PRODUCTION_READ} />}>
+        <Route path="/production" element={<ProductionPage />} />
+      </Route>
+
       <Route element={<ProtectedRoute permission={PERMISSIONS.REPORTS_READ} />}>
+        <Route path="/reports/ledger" element={<LedgerReportPage />} />
+        <Route path="/reports/supplier-statement" element={<SupplierStatementPage />} />
+        <Route path="/reports/consignment" element={<ConsignmentReportPage />} />
         <Route path="/reports/inventory" element={<InventoryReportPage />} />
         <Route path="/reports/zone" element={<ZoneReportPage />} />
         <Route path="/reports/requisition" element={<RequisitionReportPage />} />
@@ -117,6 +129,9 @@ export function AppRouter() {
 
       <Route element={<ProtectedRoute permission={PERMISSIONS.INGREDIENTS_READ} />}>
         <Route path="/master-data/ingredients" element={<IngredientsPage />} />
+      </Route>
+      <Route element={<ProtectedRoute permission={PERMISSIONS.INGREDIENTS_IMPORT} />}>
+        <Route path="/master-data/import" element={<ImportIngredientsPage />} />
       </Route>
       <Route element={<ProtectedRoute permission={PERMISSIONS.CATEGORIES_READ} />}>
         <Route path="/master-data/categories" element={<CategoriesPage />} />

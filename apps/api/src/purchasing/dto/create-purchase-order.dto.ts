@@ -21,6 +21,12 @@ export class CreatePurchaseOrderItemDto {
   @IsPositive()
   orderedQuantity!: number;
 
+  /** Unit the line is ordered in (e.g. ลัง). Defaults to the ingredient's base unit. */
+  @IsOptional()
+  @IsMongoId()
+  unitId?: string;
+
+  /** Cost per ordered unit. */
   @Type(() => Number)
   @IsNumber()
   @Min(0)

@@ -4,6 +4,7 @@ import type {
   ComparisonPeriodType,
   MovementType,
   PurchaseOrderStatus,
+  StockOutReason,
   RequisitionStatus,
   StockCountStatus,
   StockStatus,
@@ -75,6 +76,16 @@ export const MOVEMENT_TYPE_LABEL: Record<MovementType, string> = {
   ADJUSTMENT_OUT: 'ปรับลด',
   WASTE: 'ของเสีย',
   AUTO_DEDUCTION: 'หักอัตโนมัติ',
+  PRODUCTION_IN: 'ได้จากแปรรูป',
+  PRODUCTION_OUT: 'ใช้แปรรูป',
+}
+
+export const STOCK_OUT_REASON_LABEL: Record<StockOutReason, string> = {
+  KITCHEN_USE: 'ใช้ในครัว/ร้าน',
+  SALE: 'ขาย',
+  STAFF_MEAL: 'อาหารพนักงาน',
+  COMPLIMENTARY: 'ของแถม/รับรอง',
+  OTHER: 'อื่นๆ',
 }
 
 export const ZONE_TYPE_LABEL: Record<ZoneType, string> = {
@@ -157,5 +168,7 @@ export const AUDIT_ACTION_LABEL: Record<AuditAction, string> = {
   STOCK_ADJUSTED: 'ปรับปรุงสต๊อก',
   PURCHASE_RECEIVED: 'รับสินค้าตามใบสั่งซื้อ',
   WASTE_CREATED: 'บันทึกของเสีย',
+  INGREDIENTS_IMPORTED: 'นำเข้าวัตถุดิบจาก Excel',
+  PRODUCTION_CREATED: 'บันทึกการแปรรูป/แบ่ง Portion',
   DATA_EXPORTED: 'ส่งออกข้อมูล',
 }

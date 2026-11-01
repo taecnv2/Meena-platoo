@@ -6,6 +6,7 @@ import {
 import type {
   MovementType,
   StockMovement,
+  StockOutReason,
 } from './schemas/stock-movement.schema';
 
 const MOVEMENT_TYPE_LABEL: Record<MovementType, string> = {
@@ -17,7 +18,23 @@ const MOVEMENT_TYPE_LABEL: Record<MovementType, string> = {
   ADJUSTMENT_OUT: 'ปรับลด',
   WASTE: 'ของเสีย',
   AUTO_DEDUCTION: 'หักอัตโนมัติ',
+  PRODUCTION_IN: 'ได้จากแปรรูป',
+  PRODUCTION_OUT: 'ใช้แปรรูป',
 };
+
+const STOCK_OUT_REASON_LABEL: Record<StockOutReason, string> = {
+  KITCHEN_USE: 'ใช้ในครัว/ร้าน',
+  SALE: 'ขาย',
+  STAFF_MEAL: 'อาหารพนักงาน',
+  COMPLIMENTARY: 'ของแถม/รับรอง',
+  OTHER: 'อื่นๆ',
+};
+
+function reasonLabel(reason: string | null): string | null {
+  return reason && reason in STOCK_OUT_REASON_LABEL
+    ? STOCK_OUT_REASON_LABEL[reason as StockOutReason]
+    : reason;
+}
 
 /** `timestamps: true` adds `createdAt` at runtime without it being a declared class field. */
 type MovementWithTimestamp = StockMovement & { createdAt: Date };
@@ -55,9 +72,20 @@ export function buildStockMovementExportColumns(
       align: 'right',
     },
     {
+      key: 'input',
+      header: 'บันทึกเป็น',
+      value: (row) =>
+        row.inputUnit &&
+        row.inputUnit !== row.unit &&
+        row.inputQuantity !== null
+          ? `${formatExportNumber(row.inputQuantity)} ${row.inputUnit}`
+          : '-',
+      align: 'right',
+    },
+    {
       key: 'reason',
       header: 'เหตุผล/หมายเหตุ',
-      value: (row) => row.reason ?? row.remark ?? '-',
+      value: (row) => reasonLabel(row.reason) ?? row.remark ?? '-',
     },
   ];
 }

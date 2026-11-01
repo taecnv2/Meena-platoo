@@ -10,6 +10,11 @@ export function formatNumber(value: number): string {
   return new Intl.NumberFormat('th-TH', { maximumFractionDigits: 2 }).format(value)
 }
 
+/** Like formatNumber but keeps small factors readable (1 กรัม = 0.001 กิโลกรัม instead of "0"). */
+export function formatFactor(value: number): string {
+  return new Intl.NumberFormat('th-TH', { maximumFractionDigits: 4 }).format(value)
+}
+
 export function formatQuantity(quantity: number, unit: string): string {
   return `${formatNumber(quantity)} ${unit}`
 }

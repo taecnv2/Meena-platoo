@@ -7,6 +7,7 @@ export interface CreateZonePayload {
   code: string
   type: ZoneType
   description?: string
+  allowReceiving?: boolean
 }
 
 export type UpdateZonePayload = Partial<Omit<CreateZonePayload, 'code'>>

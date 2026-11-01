@@ -3,12 +3,16 @@ import type { PurchaseOrder, PurchaseOrderStatus } from '@/types/entities'
 
 export interface CreatePurchaseOrderPayload {
   supplierId: string
-  items: Array<{ ingredientId: string; orderedQuantity: number; unitCost: number }>
+  /** orderedQuantity/unitCost are per `unitId` (e.g. per ลัง); defaults to the base unit. */
+  items: Array<{ ingredientId: string; orderedQuantity: number; unitCost: number; unitId?: string }>
   remark?: string
 }
 
 export interface ReceivePurchaseOrderPayload {
   items: Array<{ ingredientId: string; quantity?: number }>
+  /** Zone to receive into (must allow receiving). Defaults to the PO's delivery zone (WAREHOUSE). */
+  zoneId?: string
+  invoiceNo?: string
 }
 
 export interface PurchaseOrdersFilter {

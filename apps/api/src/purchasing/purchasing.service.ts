@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -9,6 +10,7 @@ import { QueryFilter, Model, Types } from 'mongoose';
 import { buildDateRangeQuery } from '../common/utils/date-range.util';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { IngredientsService } from '../ingredients/ingredients.service';
+import { roundQuantity } from '../ingredients/unit-conversion.util';
 import { InventoryService } from '../inventory/inventory.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ZonesService } from '../zones/zones.service';
@@ -77,14 +79,18 @@ export class PurchasingService {
     const warehouseZoneId = await this.zonesService.getWarehouseZoneId();
     const items = await Promise.all(
       dto.items.map(async (item) => {
-        const ingredient = await this.ingredientsService.findByIdWithUnit(
+        const resolved = await this.ingredientsService.resolveQuantity(
           item.ingredientId,
+          item.orderedQuantity,
+          item.unitId,
         );
         return {
           ingredientId: item.ingredientId,
           orderedQuantity: item.orderedQuantity,
           receivedQuantity: 0,
-          unit: ingredient.baseUnitId.code,
+          unit: resolved.inputUnit,
+          unitId: item.unitId ?? resolved.ingredient.baseUnitId._id,
+          conversionFactor: resolved.factor,
           unitCost: item.unitCost,
         };
       }),
@@ -193,6 +199,7 @@ export class PurchasingService {
     id: string,
     dto: ReceivePurchaseOrderDto,
     userId: string,
+    zoneAccess?: { isSuperScope: boolean; zoneIds: string[] },
   ): Promise<PurchaseOrder> {
     const purchaseOrder = await this.getMutableOrThrow(id);
     if (!['APPROVED', 'PARTIALLY_RECEIVED'].includes(purchaseOrder.status)) {
@@ -206,6 +213,7 @@ export class PurchasingService {
       quantity: number;
       unit: string;
       unitCost: number;
+      conversionFactor: number;
     }> = [];
     for (const receiveItem of dto.items) {
       const item = purchaseOrder.items.find(
@@ -226,23 +234,46 @@ export class PurchasingService {
         quantity,
         unit: item.unit,
         unitCost: item.unitCost,
+        conversionFactor: item.conversionFactor ?? 1,
       });
     }
 
-    const warehouseZoneId = await this.zonesService.getWarehouseZoneId();
+    const zoneId = dto.zoneId ?? purchaseOrder.deliveryZoneId.toString();
+    // @ZoneScope only checks a zoneId present in the body; the default delivery zone is checked here.
+    if (
+      zoneAccess &&
+      !zoneAccess.isSuperScope &&
+      !zoneAccess.zoneIds.includes(zoneId)
+    ) {
+      throw new ForbiddenException('คุณไม่มีสิทธิ์เข้าถึง Zone นี้');
+    }
+    await this.zonesService.assertCanReceive(zoneId);
+    const baseUnits = new Map<string, string>();
+    for (const item of receivedItems) {
+      const ingredient = await this.ingredientsService.findByIdWithUnit(
+        item.ingredientId,
+      );
+      baseUnits.set(item.ingredientId, ingredient.baseUnitId.code);
+    }
+    const supplierId = purchaseOrder.supplierId.toString();
+    const invoiceNo = dto.invoiceNo?.trim() || null;
     await this.inventoryService.withTransaction(async (session) => {
       for (const item of receivedItems) {
         await this.inventoryService.increment(
           {
             ingredientId: item.ingredientId,
-            zoneId: warehouseZoneId,
-            quantity: item.quantity,
-            unit: item.unit,
+            zoneId,
+            quantity: roundQuantity(item.quantity * item.conversionFactor),
+            unit: baseUnits.get(item.ingredientId) ?? item.unit,
             movementType: 'STOCK_IN',
             referenceType: 'PURCHASE_ORDER',
             referenceId: id,
-            unitCost: item.unitCost,
+            unitCost: item.unitCost / item.conversionFactor,
             performedBy: userId,
+            inputQuantity: item.quantity,
+            inputUnit: item.unit,
+            supplierId,
+            invoiceNo,
           },
           session,
         );
@@ -272,7 +303,7 @@ export class PurchasingService {
       action: 'PURCHASE_RECEIVED',
       entity: 'PurchaseOrder',
       entityId: id,
-      after: { status: received.status, receivedItems },
+      after: { status: received.status, zoneId, invoiceNo, receivedItems },
     });
     return received;
   }

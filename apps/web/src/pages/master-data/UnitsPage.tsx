@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Plus, Pencil } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { unitsApi } from '@/api/endpoints/units'
 import { getErrorMessage } from '@/api/errors'
 import { Button } from '@/components/Button'
@@ -23,7 +24,7 @@ const formSchema = z.object({
   code: z.string().min(1, 'กรุณากรอกรหัส'),
   name: z.string().min(1, 'กรุณากรอกชื่อ'),
   type: z.enum(UNIT_TYPES),
-  conversionFactor: z.coerce.number().positive().optional(),
+  conversionFactor: z.coerce.number().positive('ต้องมากกว่า 0').optional(),
 })
 type FormValues = z.infer<typeof formSchema>
 
@@ -108,6 +109,20 @@ export function UnitsPage() {
         </div>
       </div>
 
+      <div className="rounded-xl border border-info/30 bg-info-light/50 px-4 py-3 text-sm text-text-primary">
+        <p className="font-medium">ตัวคูณเทียบหน่วยมาตรฐาน ใช้กับหน่วยน้ำหนักและปริมาตรเท่านั้น</p>
+        <ul className="mt-1 list-disc pl-5 text-text-secondary">
+          <li>ใช้แปลงหน่วยในกลุ่มเดียวกันอัตโนมัติ เช่น กรัม = 0.001 ของกิโลกรัม, มิลลิลิตร = 0.001 ของลิตร</li>
+          <li>หน่วยมาตรฐานของกลุ่ม (กิโลกรัม, ลิตร) ให้ใส่ 1 ส่วนหน่วยนับชิ้นและอื่น ๆ ใส่ 1 ได้เลย</li>
+          <li>
+            ขนาดแพ็ค เช่น &quot;1 ลัง = 12 ขวด&quot; ไม่ต้องตั้งที่นี่ ให้ตั้งในแต่ละวัตถุดิบที่หน้า{' '}
+            <Link to="/master-data/ingredients" className="font-medium text-primary hover:underline">
+              วัตถุดิบ
+            </Link>
+          </li>
+        </ul>
+      </div>
+
       <DataTable columns={columns} rows={data ?? []} rowKey={(row) => row._id} isLoading={isLoading} emptyMessage="ยังไม่มีหน่วยนับ" />
 
       <Modal isOpen={editing !== null} onClose={() => setEditing(null)} title={editing === 'new' ? 'เพิ่มหน่วยนับ' : 'แก้ไขหน่วยนับ'}>
@@ -115,7 +130,15 @@ export function UnitsPage() {
           <Input label="รหัส" disabled={editing !== 'new'} error={errors.code?.message} {...register('code')} />
           <Input label="ชื่อหน่วยนับ" error={errors.name?.message} {...register('name')} />
           <Select label="ประเภท" options={TYPE_OPTIONS} error={errors.type?.message} {...register('type')} />
-          <Input label="ตัวคูณเทียบหน่วยหลัก" type="number" step="0.01" error={errors.conversionFactor?.message} {...register('conversionFactor')} />
+          <Input
+            label="ตัวคูณเทียบหน่วยมาตรฐาน (เฉพาะน้ำหนัก/ปริมาตร)"
+            type="number"
+            step="any"
+            inputMode="decimal"
+            hint="เช่น กรัม = 0.001 (ของกิโลกรัม), มิลลิลิตร = 0.001 (ของลิตร) หน่วยอื่นใส่ 1"
+            error={errors.conversionFactor?.message}
+            {...register('conversionFactor')}
+          />
           <Button type="submit" isLoading={isSubmitting}>
             บันทึก
           </Button>

@@ -21,6 +21,7 @@ export const PERMISSIONS = {
   INGREDIENTS_READ: 'ingredients.read',
   INGREDIENTS_CREATE: 'ingredients.create',
   INGREDIENTS_UPDATE: 'ingredients.update',
+  INGREDIENTS_IMPORT: 'ingredients.import',
 
   INVENTORY_READ: 'inventory.read',
   INVENTORY_CREATE: 'inventory.create',
@@ -49,6 +50,9 @@ export const PERMISSIONS = {
   WASTE_READ: 'waste.read',
   WASTE_CREATE: 'waste.create',
   WASTE_APPROVE: 'waste.approve',
+
+  PRODUCTION_READ: 'production.read',
+  PRODUCTION_CREATE: 'production.create',
 
   REPORTS_READ: 'reports.read',
   AUDIT_READ: 'audit.read',

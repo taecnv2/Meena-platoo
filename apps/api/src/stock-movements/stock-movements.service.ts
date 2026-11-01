@@ -22,6 +22,11 @@ export interface RecordMovementInput {
   performedBy: string;
   reason?: string | null;
   remark?: string | null;
+  inputQuantity?: number | null;
+  inputUnit?: string | null;
+  weight?: number | null;
+  supplierId?: string | null;
+  invoiceNo?: string | null;
 }
 
 export interface FindMovementsFilter {
@@ -60,6 +65,11 @@ export class StockMovementsService {
           performedBy: input.performedBy,
           reason: input.reason ?? null,
           remark: input.remark ?? null,
+          inputQuantity: input.inputQuantity ?? null,
+          inputUnit: input.inputUnit ?? null,
+          weight: input.weight ?? null,
+          supplierId: input.supplierId ?? null,
+          invoiceNo: input.invoiceNo ?? null,
         },
       ],
       { session },

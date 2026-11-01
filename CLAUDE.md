@@ -43,11 +43,15 @@ npm run lint             # oxlint
 
 There is no root-level test runner — run tests from within `apps/api`.
 
+Use Node ≥ 22 (`engines`); `oxlint` and `vite build` fail on Node 20. If `vite build`/`oxlint` report a missing native binding (lockfile created on another OS), run `npm install --no-save @rolldown/binding-<platform> @oxlint/binding-<platform>` with the versions the installed `rolldown`/`oxlint` expect.
+
+End-user documentation (Thai) lives in `docs/USER_GUIDE.md` — update it when a user-facing flow changes.
+
 ## Architecture
 
 ### Backend (`apps/api`, NestJS + Mongoose/MongoDB)
 
-One module per business domain under `src/`, mirroring `plan.md` §4 (auth, users, roles, permissions, zones, categories, units, suppliers, ingredients, inventory, stock-movements, transfers, requisitions, stock-counts, dashboard). Each module follows `*.module.ts` / `*.controller.ts` / `*.service.ts` / `dto/` / `schemas/`.
+One module per business domain under `src/`, mirroring `plan.md` §4 (auth, users, roles, permissions, zones, categories, units, suppliers, ingredients, inventory, stock-movements, transfers, requisitions, stock-counts, purchasing, waste, production, imports, reports, dashboard). Each module follows `*.module.ts` / `*.controller.ts` / `*.service.ts` / `dto/` / `schemas/`.
 
 **Request authorization pipeline** (mirrors `plan.md` §6/§16, wired globally in `app.module.ts` via `APP_GUARD`, executed in this order for every request):
 
@@ -66,6 +70,21 @@ Permission codes follow `resource.action` (e.g. `requisition.approve`) and must 
 - `decrement` uses a conditional `$gte` filter so concurrent operations can't drive stock negative (`plan.md` §40); a failed decrement throws `ConflictException` without writing a movement.
 - **Requisition creation does not move stock** — only approval → fulfillment → the resulting Transfer does (`plan.md` §24, §22 Rule 2/3). Don't conflate the two flows.
 - When adding a new stock-affecting feature (purchasing receive, waste, stock count adjustment, etc.), route it through `InventoryService.increment`/`decrement` inside `withTransaction` rather than writing to `ZoneStock` directly.
+- `IN_MOVEMENT_TYPES` / `OUT_MOVEMENT_TYPES` in `stock-movements/schemas/stock-movement.schema.ts` are the single source for "adds vs removes stock" — reports and the ledger use them, so a new movement type must be added to one of them.
+
+**Units & conversion** (`ingredients/unit-conversion.util.ts`, `IngredientsService.resolveQuantity`):
+
+- `ZoneStock.quantity` and `StockMovement.quantity` are always in the ingredient's **base unit**. DTOs that take a quantity also accept an optional `unitId`; the service calls `ingredientsService.resolveQuantity(ingredientId, quantity, unitId)` first and works with `baseQuantity`. Do the same in any new quantity-taking endpoint.
+- A unit converts if it is the base unit, one of `Ingredient.unitConversions` (`1 unitId = factor × base`, e.g. 1 ลัง = 12 ขวด), or the same WEIGHT/VOLUME type (ratio of `Unit.conversionFactor`, e.g. G = 0.001 of KG). Anything else is a Thai `BadRequestException`.
+- Movements keep what was keyed in (`inputQuantity`/`inputUnit`); a per-entered-unit cost is divided by the factor before it becomes `unitCost` (cost per base unit). PO lines are the exception: they keep `unit`/`unitCost` in the ordered unit plus a frozen `conversionFactor`, converted on receive.
+
+**Receiving zones**: stock-in and PO receive may target the WAREHOUSE or any zone with `Zone.allowReceiving` (`ZonesService.assertCanReceive`); requisitions may be drawn from the same set (`ZonesService.isStockSource`). `@ZoneScope({ ..., optional: true })` lets a request omit the zone (service falls back to a server-chosen one) while still checking a zone that is supplied.
+
+**Production** (`production/`): one batch decrements a raw ingredient (`PRODUCTION_OUT`) and increments portion outputs (`PRODUCTION_IN`) in one transaction; the raw cost is split by `production-cost.util.ts` (by portion weight when every output has one, else per unit).
+
+**Imports** (`imports/`): `POST /imports/ingredients { rows, dryRun }` — the same plan runs for preview and commit; rows are independent (an error skips only that row); missing categories/units are created only if the user has their create permission; opening balances use `InventoryService.setBalance` (`referenceType: 'IMPORT'`) and are zone-scoped per row in the service because one request can name many zones. The web column contract is `apps/web/src/features/import/ingredientImportColumns.ts`, documented for users in `docs/USER_GUIDE.md` — keep the two in sync.
+
+**Operational reports** (`reports/operational-reports.service.ts`): `/reports/ledger` (daily opening/in/out/closing rebuilt backwards from current ZoneStock, `ledger.util.ts`; transfers excluded when no zone filter), `/reports/supplier-statement` (STOCK_IN movements carrying `supplierId`), `/reports/consignment` (ingredients with `consignmentOwner`; sales = STOCK_OUT with reason `SALE`).
 
 **Response/error conventions**: `TransformInterceptor` wraps all successful responses as `{ success: true, data }`; `HttpExceptionFilter` normalizes error responses. User-facing exception messages (validation, `ForbiddenException`, etc.) are written in Thai (see `common/guards/*.guard.ts`) — keep this convention for new endpoints per `plan.md` §63.
 
@@ -78,7 +97,9 @@ Permission codes follow `resource.action` (e.g. `requisition.approve`) and must 
 - `src/api/createCrudApi.ts` is a generic factory (`list/get/create/update`) — use it for straightforward resource endpoints under `src/api/endpoints/*` instead of hand-rolling Axios calls; add resource-specific methods (e.g. approve/fulfill actions) alongside the generated CRUD object.
 - Routing (`src/app/router.tsx`) gates every route with `<ProtectedRoute permission={PERMISSIONS.X} />`; add new pages by wrapping their `<Route>` in a `ProtectedRoute` with the matching backend permission constant from `src/constants/permissions.ts`, mirroring the guard chain on the API side. Frontend permission checks are UX only — the real boundary is the backend guard chain above (`plan.md` §37–38).
 - `src/features/auth/AuthContext.tsx` holds the authenticated user (with resolved `permissions`/`zoneIds`); `src/hooks/usePermission.ts` and `useZoneAccess.ts` read from it for conditional rendering.
-- Shared design-system primitives live in `src/components/` (Button, Input, Select, DataTable, Modal, StatCard, Badge, ConfirmDialog, etc.) — reuse these rather than one-off styled elements, per `plan.md` §79.
+- Shared design-system primitives live in `src/components/` (Button, Input, Select, DataTable, Modal, StatCard, Badge, ConfirmDialog, `UnitSelect`, `SearchableSelect`, `ExportButton`, `ExcelExportButton`, etc.) — reuse these rather than one-off styled elements, per `plan.md` §79.
+- Ingredient pickers use `<SearchableSelect>` (a drop-in for `Select` with type-to-search; a hidden native select keeps `register`/`setValue`/`reset` working) because the master list has hundreds of items.
+- Quantity inputs pair with `<UnitSelect>` (options from `utils/units.ts#getUnitOptions`, which mirrors the API's conversion rules); show stock as pack breakdowns with `formatPackBreakdown`. Server-side CSV/PDF exports use `ExportButton` + the API's `export/` module; client-side .xlsx (`ExcelExportButton`, `utils/excel.ts` with `write-excel-file` / `read-excel-file`, dynamically imported) is for screens without an export endpoint and for the ingredient sheet that round-trips through the importer.
 - UI copy is Thai-first (`src/constants/labels.ts`, `src/constants/nav.ts`); identifiers, types, and API contracts stay in English per `plan.md` §64.
 
 ### Cross-cutting

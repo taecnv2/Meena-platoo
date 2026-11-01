@@ -7,9 +7,10 @@ import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { ClientSession, Connection, QueryFilter, Model } from 'mongoose';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { IngredientsService } from '../ingredients/ingredients.service';
+import { roundQuantity } from '../ingredients/unit-conversion.util';
 import {
-  MovementType,
-  ReferenceType,
+  type MovementType,
+  type ReferenceType,
   StockMovement,
 } from '../stock-movements/schemas/stock-movement.schema';
 import { StockMovementsService } from '../stock-movements/stock-movements.service';
@@ -31,6 +32,11 @@ export interface MovementInput {
   performedBy: string;
   reason?: string | null;
   remark?: string | null;
+  inputQuantity?: number | null;
+  inputUnit?: string | null;
+  weight?: number | null;
+  supplierId?: string | null;
+  invoiceNo?: string | null;
 }
 
 export interface BalanceFilter {
@@ -81,26 +87,34 @@ export class InventoryService {
   }
 
   async stockIn(dto: StockInDto, userId: string): Promise<StockMovement> {
-    const warehouseZoneId = await this.zonesService.getWarehouseZoneId();
-    if (dto.zoneId !== warehouseZoneId) {
-      throw new BadRequestException('รับสินค้าได้เฉพาะที่คลังสินค้าเท่านั้น');
-    }
-    const ingredient = await this.ingredientsService.findByIdWithUnit(
+    await this.zonesService.assertCanReceive(dto.zoneId);
+    const resolved = await this.ingredientsService.resolveQuantity(
       dto.ingredientId,
+      dto.quantity,
+      dto.unitId,
     );
+    const unitCost =
+      dto.unitCost !== undefined
+        ? dto.unitCost / resolved.factor
+        : resolved.ingredient.defaultCost;
     return this.withTransaction((session) =>
       this.increment(
         {
           ingredientId: dto.ingredientId,
           zoneId: dto.zoneId,
-          quantity: dto.quantity,
-          unit: ingredient.baseUnitId.code,
+          quantity: resolved.baseQuantity,
+          unit: resolved.baseUnit,
           movementType: 'STOCK_IN',
           referenceType: 'STOCK_IN',
           referenceId: null,
-          unitCost: dto.unitCost ?? ingredient.defaultCost,
+          unitCost,
           performedBy: userId,
           remark: dto.remark ?? null,
+          inputQuantity: resolved.inputQuantity,
+          inputUnit: resolved.inputUnit,
+          weight: dto.weight ?? null,
+          supplierId: dto.supplierId ?? null,
+          invoiceNo: dto.invoiceNo?.trim() || null,
         },
         session,
       ),
@@ -108,22 +122,28 @@ export class InventoryService {
   }
 
   async stockOut(dto: StockOutDto, userId: string): Promise<StockMovement> {
-    const ingredient = await this.ingredientsService.findByIdWithUnit(
+    const resolved = await this.ingredientsService.resolveQuantity(
       dto.ingredientId,
+      dto.quantity,
+      dto.unitId,
     );
     return this.withTransaction((session) =>
       this.decrement(
         {
           ingredientId: dto.ingredientId,
           zoneId: dto.zoneId,
-          quantity: dto.quantity,
-          unit: ingredient.baseUnitId.code,
+          quantity: resolved.baseQuantity,
+          unit: resolved.baseUnit,
           movementType: 'STOCK_OUT',
           referenceType: 'STOCK_OUT',
           referenceId: null,
-          unitCost: ingredient.defaultCost,
+          unitCost: resolved.ingredient.defaultCost,
           performedBy: userId,
+          reason: dto.reason ?? 'KITCHEN_USE',
           remark: dto.remark ?? null,
+          inputQuantity: resolved.inputQuantity,
+          inputUnit: resolved.inputUnit,
+          weight: dto.weight ?? null,
         },
         session,
       ),
@@ -134,38 +154,29 @@ export class InventoryService {
     if (dto.quantityDelta === 0) {
       throw new BadRequestException('จำนวนที่ปรับต้องไม่เป็นศูนย์');
     }
-    const ingredient = await this.ingredientsService.findByIdWithUnit(
+    const resolved = await this.ingredientsService.resolveQuantity(
       dto.ingredientId,
+      Math.abs(dto.quantityDelta),
+      dto.unitId,
     );
     const base = {
       ingredientId: dto.ingredientId,
       zoneId: dto.zoneId,
-      unit: ingredient.baseUnitId.code,
-      unitCost: ingredient.defaultCost,
+      unit: resolved.baseUnit,
+      unitCost: resolved.ingredient.defaultCost,
       performedBy: userId,
       reason: dto.reason,
       remark: dto.remark ?? null,
       referenceType: 'ADJUSTMENT' as ReferenceType,
       referenceId: null,
+      quantity: resolved.baseQuantity,
+      inputQuantity: resolved.inputQuantity,
+      inputUnit: resolved.inputUnit,
     };
     const movement = await this.withTransaction((session) =>
       dto.quantityDelta > 0
-        ? this.increment(
-            {
-              ...base,
-              quantity: dto.quantityDelta,
-              movementType: 'ADJUSTMENT_IN',
-            },
-            session,
-          )
-        : this.decrement(
-            {
-              ...base,
-              quantity: Math.abs(dto.quantityDelta),
-              movementType: 'ADJUSTMENT_OUT',
-            },
-            session,
-          ),
+        ? this.increment({ ...base, movementType: 'ADJUSTMENT_IN' }, session)
+        : this.decrement({ ...base, movementType: 'ADJUSTMENT_OUT' }, session),
     );
     await this.auditLogsService.log({
       userId,
@@ -175,10 +186,53 @@ export class InventoryService {
       after: {
         zoneId: dto.zoneId,
         quantityDelta: dto.quantityDelta,
+        unit: resolved.inputUnit,
         reason: dto.reason,
       },
     });
     return movement;
+  }
+
+  /**
+   * Sets a zone's quantity to an absolute target (opening balance from an import) by posting
+   * the difference as an ADJUSTMENT_IN/OUT. Returns null when the zone already holds `target`.
+   */
+  async setBalance(
+    input: {
+      ingredientId: string;
+      zoneId: string;
+      target: number;
+      unit: string;
+      unitCost: number;
+      performedBy: string;
+      reason: string;
+      referenceType: ReferenceType;
+    },
+    session: ClientSession,
+  ): Promise<StockMovement | null> {
+    const current = await this.zoneStockModel
+      .findOne({ ingredientId: input.ingredientId, zoneId: input.zoneId })
+      .session(session)
+      .lean();
+    const delta = roundQuantity(input.target - (current?.quantity ?? 0));
+    if (delta === 0) {
+      return null;
+    }
+    const movement: MovementInput = {
+      ingredientId: input.ingredientId,
+      zoneId: input.zoneId,
+      quantity: Math.abs(delta),
+      unit: input.unit,
+      movementType: delta > 0 ? 'ADJUSTMENT_IN' : 'ADJUSTMENT_OUT',
+      referenceType: input.referenceType,
+      referenceId: null,
+      unitCost: input.unitCost,
+      performedBy: input.performedBy,
+      reason: input.reason,
+    };
+    return delta > 0
+      ? this.increment(movement, session)
+      : this.decrement(movement, session);
   }
 
   /** Atomic primitive: always increases stock, upserts the ZoneStock row. Requires a session. */

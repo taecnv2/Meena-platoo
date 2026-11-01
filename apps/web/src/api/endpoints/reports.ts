@@ -3,7 +3,10 @@ import { downloadFile } from '../downloadFile'
 import type {
   ComparisonPeriodType,
   ComparisonReport,
+  ConsignmentOwnerReport,
   CostReport,
+  LedgerReport,
+  SupplierStatement,
   InventoryReportRow,
   PurchaseReport,
   RequisitionReport,
@@ -23,7 +26,32 @@ export interface PurchaseReportFilter {
   supplierId?: string
 }
 
+export interface LedgerFilter {
+  dateFrom: string
+  dateTo: string
+  zoneId?: string
+  categoryId?: string
+}
+
+export interface SupplierStatementFilter {
+  supplierId: string
+  dateFrom?: string
+  dateTo?: string
+}
+
+export interface ConsignmentFilter {
+  dateFrom?: string
+  dateTo?: string
+  owner?: string
+}
+
 export const reportsApi = {
+  ledger: (filter: LedgerFilter) =>
+    axiosClient.get<LedgerReport>('/reports/ledger', { params: filter }).then((r) => r.data),
+  supplierStatement: (filter: SupplierStatementFilter) =>
+    axiosClient.get<SupplierStatement>('/reports/supplier-statement', { params: filter }).then((r) => r.data),
+  consignment: (filter?: ConsignmentFilter) =>
+    axiosClient.get<ConsignmentOwnerReport[]>('/reports/consignment', { params: filter }).then((r) => r.data),
   zone: (filter?: ActivityReportFilter) =>
     axiosClient.get<ZoneReportRow[]>('/reports/zone', { params: filter }).then((r) => r.data),
   requisition: (filter?: ActivityReportFilter) =>

@@ -34,6 +34,13 @@ export class Zone {
 
   @Prop({ enum: ['ACTIVE', 'INACTIVE'], default: 'ACTIVE', index: true })
   status!: 'ACTIVE' | 'INACTIVE';
+
+  /**
+   * Whether goods from suppliers may be received straight into this zone (e.g. the cold room
+   * takes fish deliveries directly). The WAREHOUSE zone can always receive regardless.
+   */
+  @Prop({ default: false })
+  allowReceiving!: boolean;
 }
 
 export const ZoneSchema = SchemaFactory.createForClass(Zone);

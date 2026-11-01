@@ -1,15 +1,18 @@
 import { useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useForm } from 'react-hook-form'
+import { Controller, useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { wasteApi } from '@/api/endpoints/waste'
 import { ingredientsApi } from '@/api/endpoints/ingredients'
+import { unitsApi } from '@/api/endpoints/units'
 import { zonesApi } from '@/api/endpoints/zones'
 import { getErrorMessage } from '@/api/errors'
 import { Button } from '@/components/Button'
 import { Input } from '@/components/Input'
 import { Select } from '@/components/Select'
+import { SearchableSelect } from '@/components/SearchableSelect'
+import { UnitSelect } from '@/components/UnitSelect'
 import { Badge } from '@/components/Badge'
 import { Card, CardBody } from '@/components/Card'
 import { Modal } from '@/components/Modal'
@@ -29,6 +32,7 @@ const formSchema = z.object({
   zoneId: z.string().min(1, 'กรุณาเลือก Zone'),
   ingredientId: z.string().min(1, 'กรุณาเลือกวัตถุดิบ'),
   quantity: z.coerce.number().positive('กรุณากรอกจำนวนที่มากกว่า 0'),
+  unitId: z.string().optional(),
   reason: z.enum(WASTE_REASONS),
   remark: z.string().optional(),
 })
@@ -50,6 +54,7 @@ export function WastePage() {
 
   const { data: ingredients } = useQuery({ queryKey: ['ingredients'], queryFn: ingredientsApi.list })
   const { data: zones } = useQuery({ queryKey: ['zones'], queryFn: zonesApi.list })
+  const { data: units } = useQuery({ queryKey: ['units'], queryFn: unitsApi.list })
   const { data: wasteRecords, isLoading } = useQuery({
     queryKey: ['waste', statusFilter, dateRange.dateFrom, dateRange.dateTo],
     queryFn: () =>
@@ -60,24 +65,30 @@ export function WastePage() {
       }),
   })
 
-  const ingredientMap = useMemo(() => new Map((ingredients ?? []).map((i) => [i._id, i.name])), [ingredients])
+  const ingredientById = useMemo(() => new Map((ingredients ?? []).map((i) => [i._id, i])), [ingredients])
+  const unitNameByCode = useMemo(() => new Map((units ?? []).map((u) => [u.code, u.name])), [units])
   const zoneMap = useMemo(() => new Map((zones ?? []).map((z) => [z._id, z.name])), [zones])
   const accessibleZones = (zones ?? []).filter((z) => !accessibleZoneIds || accessibleZoneIds.includes(z._id))
 
   const {
     register,
+    control,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors, isSubmitting },
-  } = useForm<FormValues>({ resolver: zodResolver(formSchema) })
+  } = useForm<FormValues>({ resolver: zodResolver(formSchema), defaultValues: { unitId: '' } })
+  const watchedIngredientId = useWatch({ control, name: 'ingredientId' })
+  const watchedQuantity = useWatch({ control, name: 'quantity' })
+  const ingredientField = register('ingredientId')
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['waste'] })
 
   const onSubmit = async (values: FormValues) => {
     try {
-      const waste = await wasteApi.create(values)
+      const waste = await wasteApi.create({ ...values, unitId: values.unitId || undefined })
       toast.show('success', `บันทึกของเสีย ${waste.code} สำเร็จ รอการอนุมัติ`)
-      reset({ zoneId: values.zoneId, ingredientId: '', quantity: 0, reason: values.reason, remark: '' })
+      reset({ zoneId: values.zoneId, ingredientId: '', quantity: 0, unitId: '', reason: values.reason, remark: '' })
       await invalidate()
     } catch (error) {
       toast.show('error', getErrorMessage(error))
@@ -119,8 +130,8 @@ export function WastePage() {
     { key: 'code', header: 'เลขที่', render: (row) => row.code },
     { key: 'date', header: 'วันที่', render: (row) => formatDateTime(row.createdAt) },
     { key: 'zone', header: 'Zone', render: (row) => zoneMap.get(row.zoneId) ?? '-' },
-    { key: 'ingredient', header: 'วัตถุดิบ', render: (row) => ingredientMap.get(row.ingredientId) ?? '-' },
-    { key: 'quantity', header: 'จำนวน', render: (row) => formatQuantity(row.quantity, row.unit) },
+    { key: 'ingredient', header: 'วัตถุดิบ', render: (row) => ingredientById.get(row.ingredientId)?.name ?? '-' },
+    { key: 'quantity', header: 'จำนวน', render: (row) => formatQuantity(row.quantity, unitNameByCode.get(row.unit) ?? row.unit) },
     { key: 'reason', header: 'สาเหตุ', render: (row) => WASTE_REASON_LABEL[row.reason] },
     { key: 'remark', header: 'หมายเหตุ', render: (row) => row.remark },
     {
@@ -166,14 +177,46 @@ export function WastePage() {
                   error={errors.zoneId?.message}
                   {...register('zoneId')}
                 />
-                <Select
+                <SearchableSelect
                   label="วัตถุดิบ"
                   placeholder="เลือกวัตถุดิบ"
                   options={(ingredients ?? []).map((i) => ({ value: i._id, label: `${i.name} (${i.code})` }))}
                   error={errors.ingredientId?.message}
-                  {...register('ingredientId')}
+                  {...ingredientField}
+                  onChange={(event) => {
+                    void ingredientField.onChange(event)
+                    // A new ingredient has different units: start again from its base unit.
+                    setValue('unitId', ingredientById.get(event.target.value)?.baseUnitId ?? '')
+                  }}
                 />
-                <Input label="จำนวน" type="number" step="0.01" error={errors.quantity?.message} {...register('quantity')} />
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    label="จำนวน"
+                    type="number"
+                    step="any"
+                    min="0"
+                    inputMode="decimal"
+                    error={errors.quantity?.message}
+                    {...register('quantity')}
+                  />
+                  <Controller
+                    control={control}
+                    name="unitId"
+                    render={({ field }) => (
+                      <UnitSelect
+                        id="waste-unitId"
+                        ingredient={ingredientById.get(watchedIngredientId ?? '')}
+                        units={units}
+                        quantity={Number(watchedQuantity) || 0}
+                        ref={field.ref}
+                        name={field.name}
+                        value={field.value ?? ''}
+                        onChange={field.onChange}
+                        onBlur={field.onBlur}
+                      />
+                    )}
+                  />
+                </div>
                 <Select
                   label="สาเหตุ"
                   placeholder="เลือกสาเหตุ"
