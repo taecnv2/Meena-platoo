@@ -7,6 +7,7 @@ import {
   IsNumber,
   IsOptional,
   IsPositive,
+  IsString,
   ValidateNested,
 } from 'class-validator';
 
@@ -29,4 +30,14 @@ export class ReceivePurchaseOrderDto {
   @ValidateNested({ each: true })
   @Type(() => ReceivePurchaseOrderItemDto)
   items!: ReceivePurchaseOrderItemDto[];
+
+  /** Zone to receive into. Defaults to the PO's delivery zone (WAREHOUSE). */
+  @IsOptional()
+  @IsMongoId()
+  zoneId?: string;
+
+  /** Supplier's invoice / delivery-note number, carried onto the movements for the billing statement. */
+  @IsOptional()
+  @IsString()
+  invoiceNo?: string;
 }

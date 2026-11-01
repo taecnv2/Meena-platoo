@@ -91,22 +91,30 @@ export class RequisitionsService {
     dto: CreateRequisitionDto,
     userId: string,
   ): Promise<Requisition> {
-    const warehouseZoneId = await this.zonesService.getWarehouseZoneId();
-    if (dto.fromZoneId !== warehouseZoneId) {
-      throw new BadRequestException('เบิกสินค้าได้เฉพาะจากคลังสินค้าเท่านั้น');
+    if (dto.fromZoneId === dto.toZoneId) {
+      throw new BadRequestException(
+        'Zone ต้นทางและปลายทางต้องไม่ใช่ Zone เดียวกัน',
+      );
+    }
+    if (!(await this.zonesService.isStockSource(dto.fromZoneId))) {
+      throw new BadRequestException(
+        'เบิกสินค้าได้เฉพาะจากคลังสินค้า หรือ Zone ที่เปิดรับสินค้า (เช่น ห้องเย็น)',
+      );
     }
     const items = await Promise.all(
       dto.items.map(async (item) => {
-        const ingredient = await this.ingredientsService.findByIdWithUnit(
+        const resolved = await this.ingredientsService.resolveQuantity(
           item.ingredientId,
+          item.requestedQuantity,
+          item.unitId,
         );
         return {
           ingredientId: item.ingredientId,
-          requestedQuantity: item.requestedQuantity,
+          requestedQuantity: resolved.baseQuantity,
           approvedQuantity: 0,
           fulfilledQuantity: 0,
-          unit: ingredient.baseUnitId.code,
-          unitCost: ingredient.defaultCost,
+          unit: resolved.baseUnit,
+          unitCost: resolved.ingredient.defaultCost,
         };
       }),
     );

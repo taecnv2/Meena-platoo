@@ -7,6 +7,7 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
+import { ZoneScope } from '../common/decorators/zone-scope.decorator';
 import { RequirePermission } from '../common/decorators/require-permission.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { PERMISSION_CODES } from '../common/constants/permissions';
@@ -87,13 +88,14 @@ export class PurchasingController {
   }
 
   @RequirePermission(PERMISSION_CODES.PURCHASING_RECEIVE)
+  @ZoneScope({ source: 'body', field: 'zoneId', optional: true })
   @Patch(':id/receive')
   receive(
     @Param('id') id: string,
     @Body() dto: ReceivePurchaseOrderDto,
     @CurrentUser() user: RequestUser,
   ): Promise<PurchaseOrder> {
-    return this.purchasingService.receive(id, dto, user.id);
+    return this.purchasingService.receive(id, dto, user.id, user);
   }
 
   @RequirePermission(PERMISSION_CODES.PURCHASING_CREATE)

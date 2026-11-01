@@ -29,6 +29,8 @@ import { WasteModule } from './waste/waste.module';
 import { AuditLogsModule } from './audit-logs/audit-logs.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ReportsModule } from './reports/reports.module';
+import { ProductionModule } from './production/production.module';
+import { ImportsModule } from './imports/imports.module';
 
 @Module({
   imports: [
@@ -58,6 +60,8 @@ import { ReportsModule } from './reports/reports.module';
     AuditLogsModule,
     NotificationsModule,
     ReportsModule,
+    ProductionModule,
+    ImportsModule,
   ],
   controllers: [AppController],
   providers: [

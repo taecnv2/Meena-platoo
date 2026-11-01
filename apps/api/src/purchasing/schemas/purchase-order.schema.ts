@@ -18,9 +18,18 @@ export class PurchaseOrderItem {
   @Prop({ required: true, min: 0, default: 0 })
   receivedQuantity!: number;
 
+  /** Unit code the line is ordered/received in (e.g. ลัง); orderedQuantity/receivedQuantity/unitCost use it. */
   @Prop({ required: true })
   unit!: string;
 
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Unit', default: null })
+  unitId!: Types.ObjectId | null;
+
+  /** 1 line unit = conversionFactor x the ingredient's base unit, frozen at order time. */
+  @Prop({ default: 1, min: 0 })
+  conversionFactor!: number;
+
+  /** Cost per line unit (per ลัง when unit is ลัง). */
   @Prop({ required: true, min: 0 })
   unitCost!: number;
 }
@@ -40,8 +49,8 @@ export const PURCHASE_ORDER_STATUSES = [
 export type PurchaseOrderStatus = (typeof PURCHASE_ORDER_STATUSES)[number];
 
 /**
- * A Supplier order for ingredients (plan.md §30). Only receive() moves inventory, and it
- * always lands in the reserved WAREHOUSE zone (plan.md §22 Rules 1/5; see ZonesService).
+ * A Supplier order for ingredients (plan.md §30). Only receive() moves inventory -- into the
+ * WAREHOUSE zone by default, or another zone flagged allowReceiving (see ZonesService).
  */
 @Schema({ timestamps: true, collection: 'purchaseOrders' })
 export class PurchaseOrder {
@@ -67,7 +76,7 @@ export class PurchaseOrder {
   @Prop({ type: [PurchaseOrderItemSchema], required: true })
   items!: PurchaseOrderItem[];
 
-  /** Always resolved server-side to the WAREHOUSE zone id, never client-supplied. */
+  /** Default receiving zone (WAREHOUSE); a receive call may pick another zone that allows receiving. */
   @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Zone', required: true })
   deliveryZoneId!: Types.ObjectId;
 

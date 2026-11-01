@@ -69,6 +69,30 @@ export class ZonesService {
     return updated;
   }
 
+  /** Throws unless goods may be received directly into this zone (WAREHOUSE or allowReceiving). */
+  async assertCanReceive(zoneId: string): Promise<Zone> {
+    const zone = await this.findById(zoneId);
+    if (zone.status !== 'ACTIVE') {
+      throw new BadRequestException('Zone นี้ปิดใช้งานอยู่');
+    }
+    if (zone.code !== WAREHOUSE_ZONE_CODE && !zone.allowReceiving) {
+      throw new BadRequestException(
+        `Zone "${zone.name}" ไม่ได้เปิดให้รับสินค้าเข้าโดยตรง (ตั้งค่าได้ที่หน้า Zone)`,
+      );
+    }
+    return zone;
+  }
+
+  /** Zones stock is drawn from on requisitions: the WAREHOUSE plus any zone that receives goods. */
+  async isStockSource(zoneId: string): Promise<boolean> {
+    const zone = await this.zoneModel.findById(zoneId).lean();
+    return (
+      !!zone &&
+      zone.status === 'ACTIVE' &&
+      (zone.code === WAREHOUSE_ZONE_CODE || zone.allowReceiving)
+    );
+  }
+
   async getWarehouseZoneId(): Promise<string> {
     const zone = await this.zoneModel
       .findOne({ code: WAREHOUSE_ZONE_CODE })

@@ -29,18 +29,20 @@ import { Unit, UnitDocument } from '../units/schemas/unit.schema';
 import { User, UserDocument } from '../users/schemas/user.schema';
 import { Zone, ZoneDocument, ZoneType } from '../zones/schemas/zone.schema';
 
-/** Initial 3 zones from plan.md §20. Not hard-coded elsewhere -- users can add more via the Zones UI. */
+/** Initial zones (plan.md §20 + the reserved WAREHOUSE). Not hard-coded elsewhere -- users can add more via the Zones UI. */
 const ZONE_SEEDS: Array<{
   name: string;
   code: string;
   type: ZoneType;
   description: string;
+  allowReceiving?: boolean;
 }> = [
   {
     name: 'คลังสินค้า',
     code: 'WAREHOUSE',
     type: 'STORAGE',
     description: 'คลังสินค้ากลาง',
+    allowReceiving: true,
   },
   { name: 'Kitchen', code: 'KITCHEN', type: 'KITCHEN', description: 'ครัว' },
   {
@@ -54,7 +56,51 @@ const ZONE_SEEDS: Array<{
     code: 'COLD_ROOM',
     type: 'COLD_STORAGE',
     description: 'ห้องเย็น',
+    allowReceiving: true,
   },
+];
+
+/**
+ * Starter categories/units matching the restaurant's stock sheets. Upserted with $setOnInsert
+ * only, so names/factors edited later in the UI are never overwritten by a re-seed.
+ */
+const CATEGORY_SEEDS: Array<{ code: string; name: string }> = [
+  { code: 'FRESH', name: 'ของสด' },
+  { code: 'SEAFOOD', name: 'อาหารทะเล' },
+  { code: 'CURRY_PASTE', name: 'เครื่องแกง' },
+  { code: 'PROCESSED', name: 'ของแปรรูป' },
+  { code: 'PORTION', name: 'Portion' },
+  { code: 'DRY_GOODS', name: 'เครื่องปรุงและของแห้ง' },
+  { code: 'VEGETABLE', name: 'ผัก' },
+  { code: 'BEVERAGE', name: 'เครื่องดื่ม' },
+  { code: 'ALCOHOL', name: 'เครื่องดื่มแอลกอฮอล์' },
+  { code: 'WINE', name: 'ไวน์' },
+  { code: 'PACKAGING', name: 'แพ็คเกจ' },
+  { code: 'STAFF', name: 'ของพนักงาน' },
+  { code: 'OTHER', name: 'อื่นๆ' },
+];
+
+const UNIT_SEEDS: Array<{
+  code: string;
+  name: string;
+  type: 'WEIGHT' | 'VOLUME' | 'COUNT' | 'OTHER';
+  conversionFactor: number;
+}> = [
+  { code: 'KG', name: 'กิโลกรัม', type: 'WEIGHT', conversionFactor: 1 },
+  { code: 'G', name: 'กรัม', type: 'WEIGHT', conversionFactor: 0.001 },
+  { code: 'L', name: 'ลิตร', type: 'VOLUME', conversionFactor: 1 },
+  { code: 'ML', name: 'มิลลิลิตร', type: 'VOLUME', conversionFactor: 0.001 },
+  { code: 'PCS', name: 'ชิ้น', type: 'COUNT', conversionFactor: 1 },
+  { code: 'FISH', name: 'ตัว', type: 'COUNT', conversionFactor: 1 },
+  { code: 'BAG', name: 'ถุง', type: 'COUNT', conversionFactor: 1 },
+  { code: 'CASE', name: 'ลัง', type: 'COUNT', conversionFactor: 1 },
+  { code: 'PACK', name: 'แพ็ค', type: 'COUNT', conversionFactor: 1 },
+  { code: 'BOX', name: 'กล่อง', type: 'COUNT', conversionFactor: 1 },
+  { code: 'BOTTLE', name: 'ขวด', type: 'COUNT', conversionFactor: 1 },
+  { code: 'CAN', name: 'กระป๋อง', type: 'COUNT', conversionFactor: 1 },
+  { code: 'SHEET', name: 'แผ่น', type: 'COUNT', conversionFactor: 1 },
+  { code: 'BASKET', name: 'เข่ง', type: 'COUNT', conversionFactor: 1 },
+  { code: 'PORTION', name: 'ที่', type: 'COUNT', conversionFactor: 1 },
 ];
 
 interface SeedContext {
@@ -124,12 +170,56 @@ async function seed(): Promise<void> {
           description: zone.description,
           status: 'ACTIVE',
         },
+        $setOnInsert: { allowReceiving: zone.allowReceiving ?? false },
       },
       { upsert: true, returnDocument: 'after' },
     );
+    // Zones created before allowReceiving existed: enable it once for the default receiving zones.
+    if (zone.allowReceiving) {
+      await zoneModel.updateOne(
+        { code: zone.code, allowReceiving: { $exists: false } },
+        { $set: { allowReceiving: true } },
+      );
+    }
     zoneIdByCode.set(zone.code, updated._id.toString());
   }
   console.log(`  ${ZONE_SEEDS.length} zones upserted.`);
+
+  console.log('Seeding master categories and units...');
+  const categoryModel = app.get<Model<CategoryDocument>>(
+    getModelToken(Category.name),
+  );
+  const unitModel = app.get<Model<UnitDocument>>(getModelToken(Unit.name));
+  for (const category of CATEGORY_SEEDS) {
+    await categoryModel.updateOne(
+      { code: category.code },
+      {
+        $setOnInsert: {
+          name: category.name,
+          description: '',
+          status: 'ACTIVE',
+        },
+      },
+      { upsert: true },
+    );
+  }
+  for (const unit of UNIT_SEEDS) {
+    await unitModel.updateOne(
+      { code: unit.code },
+      {
+        $setOnInsert: {
+          name: unit.name,
+          type: unit.type,
+          conversionFactor: unit.conversionFactor,
+          status: 'ACTIVE',
+        },
+      },
+      { upsert: true },
+    );
+  }
+  console.log(
+    `  ${CATEGORY_SEEDS.length} categories and ${UNIT_SEEDS.length} units ensured.`,
+  );
 
   console.log('Seeding owner user...');
   const ownerRoleId = roleIdByName.get(ROLE_NAMES.OWNER);

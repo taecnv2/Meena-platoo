@@ -17,9 +17,15 @@ describe('RequisitionsService', () => {
     findById: jest.Mock;
     countDocuments: jest.Mock;
   };
-  let ingredientsService: { findByIdWithUnit: jest.Mock };
+  let ingredientsService: {
+    findByIdWithUnit: jest.Mock;
+    resolveQuantity: jest.Mock;
+  };
   let transfersService: { executeTransfer: jest.Mock };
-  let zonesService: { getWarehouseZoneId: jest.Mock };
+  let zonesService: {
+    getWarehouseZoneId: jest.Mock;
+    isStockSource: jest.Mock;
+  };
   let auditLogsService: { log: jest.Mock };
   let notificationsService: { create: jest.Mock };
 
@@ -69,12 +75,35 @@ describe('RequisitionsService', () => {
         defaultCost: 30,
         baseUnitId: { code: 'kg' },
       }),
+      // Unit-less calls resolve to the base unit 1:1, like IngredientsService.resolveQuantity.
+      resolveQuantity: jest
+        .fn()
+        .mockImplementation(async (id: string, quantity: number) => {
+          const ingredient = (await ingredientsService.findByIdWithUnit(
+            id,
+          )) as {
+            baseUnitId: { code: string };
+          };
+          return {
+            ingredient,
+            baseQuantity: quantity,
+            baseUnit: ingredient.baseUnitId.code,
+            factor: 1,
+            inputQuantity: quantity,
+            inputUnit: ingredient.baseUnitId.code,
+          };
+        }),
     };
     transfersService = {
       executeTransfer: jest.fn().mockResolvedValue(undefined),
     };
     zonesService = {
       getWarehouseZoneId: jest.fn().mockResolvedValue(warehouseZoneId),
+      isStockSource: jest
+        .fn()
+        .mockImplementation((id: string) =>
+          Promise.resolve(id === warehouseZoneId),
+        ),
     };
     auditLogsService = { log: jest.fn().mockResolvedValue(undefined) };
     notificationsService = { create: jest.fn().mockResolvedValue(undefined) };
@@ -98,7 +127,7 @@ describe('RequisitionsService', () => {
   });
 
   describe('create', () => {
-    it('rejects when fromZoneId is not the reserved WAREHOUSE zone', async () => {
+    it('rejects when fromZoneId is not a stock source (WAREHOUSE / receiving zone)', async () => {
       await expect(
         service.create(
           {

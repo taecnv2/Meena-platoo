@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { ClientSession, QueryFilter, Model } from 'mongoose';
 import { buildDateRangeQuery } from '../common/utils/date-range.util';
@@ -11,7 +15,7 @@ import { Transfer, TransferDocument } from './schemas/transfer.schema';
 export interface ExecuteTransferInput {
   fromZoneId: string;
   toZoneId: string;
-  items: Array<{ ingredientId: string; quantity: number }>;
+  items: Array<{ ingredientId: string; quantity: number; unitId?: string }>;
   requisitionId: string | null;
   performedBy: string;
 }
@@ -74,6 +78,11 @@ export class TransfersService {
     dto: CreateTransferDto,
     userId: string,
   ): Promise<Transfer> {
+    if (dto.fromZoneId === dto.toZoneId) {
+      throw new BadRequestException(
+        'Zone ต้นทางและปลายทางต้องไม่ใช่ Zone เดียวกัน',
+      );
+    }
     return this.executeTransfer({
       fromZoneId: dto.fromZoneId,
       toZoneId: dto.toZoneId,
@@ -87,14 +96,18 @@ export class TransfersService {
   async executeTransfer(input: ExecuteTransferInput): Promise<Transfer> {
     const resolvedItems = await Promise.all(
       input.items.map(async (item) => {
-        const ingredient = await this.ingredientsService.findByIdWithUnit(
+        const resolved = await this.ingredientsService.resolveQuantity(
           item.ingredientId,
+          item.quantity,
+          item.unitId,
         );
         return {
           ingredientId: item.ingredientId,
-          quantity: item.quantity,
-          unit: ingredient.baseUnitId.code,
-          unitCost: ingredient.defaultCost,
+          quantity: resolved.baseQuantity,
+          unit: resolved.baseUnit,
+          unitCost: resolved.ingredient.defaultCost,
+          inputQuantity: resolved.inputQuantity,
+          inputUnit: resolved.inputUnit,
         };
       }),
     );
@@ -133,6 +146,8 @@ export class TransfersService {
               referenceId,
               unitCost: item.unitCost,
               performedBy: input.performedBy,
+              inputQuantity: item.inputQuantity,
+              inputUnit: item.inputUnit,
             },
             session,
           );
@@ -147,6 +162,8 @@ export class TransfersService {
               referenceId,
               unitCost: item.unitCost,
               performedBy: input.performedBy,
+              inputQuantity: item.inputQuantity,
+              inputUnit: item.inputUnit,
             },
             session,
           );

@@ -1,6 +1,7 @@
 import { BadRequestException, Controller, Get, Query } from '@nestjs/common';
 import { RequirePermission } from '../common/decorators/require-permission.decorator';
 import { PERMISSION_CODES } from '../common/constants/permissions';
+import { OperationalReportsService } from './operational-reports.service';
 import {
   COMPARISON_PERIOD_TYPES,
   ComparisonPeriodType,
@@ -9,7 +10,57 @@ import {
 
 @Controller('reports')
 export class ReportsController {
-  constructor(private readonly reportsService: ReportsService) {}
+  constructor(
+    private readonly reportsService: ReportsService,
+    private readonly operationalReportsService: OperationalReportsService,
+  ) {}
+
+  /** Spreadsheet-style daily ledger: opening / in / out / closing per ingredient per day. */
+  @RequirePermission(PERMISSION_CODES.REPORTS_READ)
+  @Get('ledger')
+  getLedger(
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
+    @Query('zoneId') zoneId?: string,
+    @Query('categoryId') categoryId?: string,
+  ) {
+    return this.operationalReportsService.getLedger({
+      dateFrom,
+      dateTo,
+      zoneId: zoneId || undefined,
+      categoryId: categoryId || undefined,
+    });
+  }
+
+  /** Supplier billing statement (ใบวางบิล): every delivery received from one supplier in a period. */
+  @RequirePermission(PERMISSION_CODES.REPORTS_READ)
+  @Get('supplier-statement')
+  getSupplierStatement(
+    @Query('supplierId') supplierId?: string,
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
+  ) {
+    return this.operationalReportsService.getSupplierStatement({
+      supplierId,
+      dateFrom,
+      dateTo,
+    });
+  }
+
+  /** Consignment stock (ฝากขาย) received / sold / remaining per owner. */
+  @RequirePermission(PERMISSION_CODES.REPORTS_READ)
+  @Get('consignment')
+  getConsignmentReport(
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
+    @Query('owner') owner?: string,
+  ) {
+    return this.operationalReportsService.getConsignmentReport({
+      dateFrom,
+      dateTo,
+      owner,
+    });
+  }
 
   @RequirePermission(PERMISSION_CODES.REPORTS_READ)
   @Get('inventory')

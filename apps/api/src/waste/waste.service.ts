@@ -78,8 +78,10 @@ export class WasteService {
   }
 
   async create(dto: CreateWasteDto, userId: string): Promise<Waste> {
-    const ingredient = await this.ingredientsService.findByIdWithUnit(
+    const resolved = await this.ingredientsService.resolveQuantity(
       dto.ingredientId,
+      dto.quantity,
+      dto.unitId,
     );
 
     for (let attempt = 0; attempt < MAX_CODE_RETRIES; attempt += 1) {
@@ -89,10 +91,10 @@ export class WasteService {
           code,
           zoneId: dto.zoneId,
           ingredientId: dto.ingredientId,
-          quantity: dto.quantity,
-          unit: ingredient.baseUnitId.code,
+          quantity: resolved.baseQuantity,
+          unit: resolved.baseUnit,
           reason: dto.reason,
-          unitCost: ingredient.defaultCost,
+          unitCost: resolved.ingredient.defaultCost,
           status: 'PENDING_APPROVAL',
           reportedBy: userId,
           remark: dto.remark ?? null,

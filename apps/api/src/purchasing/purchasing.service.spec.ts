@@ -17,9 +17,15 @@ describe('PurchasingService', () => {
     countDocuments: jest.Mock;
     findById: jest.Mock;
   };
-  let ingredientsService: { findByIdWithUnit: jest.Mock };
+  let ingredientsService: {
+    findByIdWithUnit: jest.Mock;
+    resolveQuantity: jest.Mock;
+  };
   let inventoryService: { withTransaction: jest.Mock; increment: jest.Mock };
-  let zonesService: { getWarehouseZoneId: jest.Mock };
+  let zonesService: {
+    getWarehouseZoneId: jest.Mock;
+    assertCanReceive: jest.Mock;
+  };
   let auditLogsService: { log: jest.Mock };
   let notificationsService: { create: jest.Mock };
 
@@ -40,6 +46,24 @@ describe('PurchasingService', () => {
         baseUnitId: { code: 'kg' },
         defaultCost: 50,
       }),
+      // Unit-less calls resolve to the base unit 1:1, like IngredientsService.resolveQuantity.
+      resolveQuantity: jest
+        .fn()
+        .mockImplementation(async (id: string, quantity: number) => {
+          const ingredient = (await ingredientsService.findByIdWithUnit(
+            id,
+          )) as {
+            baseUnitId: { code: string };
+          };
+          return {
+            ingredient,
+            baseQuantity: quantity,
+            baseUnit: ingredient.baseUnitId.code,
+            factor: 1,
+            inputQuantity: quantity,
+            inputUnit: ingredient.baseUnitId.code,
+          };
+        }),
     };
     inventoryService = {
       withTransaction: jest.fn((fn: (session: unknown) => Promise<unknown>) =>
@@ -49,6 +73,7 @@ describe('PurchasingService', () => {
     };
     zonesService = {
       getWarehouseZoneId: jest.fn().mockResolvedValue(warehouseZoneId),
+      assertCanReceive: jest.fn().mockResolvedValue({}),
     };
     auditLogsService = { log: jest.fn().mockResolvedValue(undefined) };
     notificationsService = { create: jest.fn().mockResolvedValue(undefined) };
@@ -93,13 +118,14 @@ describe('PurchasingService', () => {
           deliveryZoneId: warehouseZoneId,
           createdBy: userId,
           items: [
-            {
+            expect.objectContaining({
               ingredientId,
               orderedQuantity: 10,
               receivedQuantity: 0,
               unit: 'kg',
+              conversionFactor: 1,
               unitCost: 42,
-            },
+            }),
           ],
         }),
       );
@@ -240,9 +266,38 @@ describe('PurchasingService', () => {
       ).rejects.toThrow('ใบสั่งซื้อนี้ไม่อยู่ในสถานะที่สามารถรับสินค้าได้');
     });
 
+    it('rejects receiving into the default delivery zone the user cannot access', async () => {
+      const doc: Record<string, unknown> = {
+        status: 'APPROVED',
+        supplierId: new Types.ObjectId(supplierId),
+        deliveryZoneId: new Types.ObjectId(warehouseZoneId),
+        items: [
+          {
+            ingredientId,
+            orderedQuantity: 10,
+            receivedQuantity: 0,
+            unit: 'kg',
+            unitCost: 42,
+          },
+        ],
+        save: jest.fn(),
+      };
+      purchaseOrderModel.findById.mockResolvedValue(doc);
+
+      await expect(
+        service.receive('po-1', { items: [{ ingredientId }] }, userId, {
+          isSuperScope: false,
+          zoneIds: [],
+        }),
+      ).rejects.toThrow('คุณไม่มีสิทธิ์เข้าถึง Zone นี้');
+      expect(inventoryService.increment).not.toHaveBeenCalled();
+    });
+
     it('accumulates receivedQuantity across two partial receives and reaches RECEIVED on the second', async () => {
       const doc: Record<string, unknown> = {
         status: 'APPROVED',
+        supplierId: new Types.ObjectId(supplierId),
+        deliveryZoneId: new Types.ObjectId(warehouseZoneId),
         items: [
           {
             ingredientId,

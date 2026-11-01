@@ -13,8 +13,14 @@ describe('InventoryService', () => {
   let service: InventoryService;
   let zoneStockModel: { findOneAndUpdate: jest.Mock };
   let stockMovementsService: { record: jest.Mock };
-  let ingredientsService: { findByIdWithUnit: jest.Mock };
-  let zonesService: { getWarehouseZoneId: jest.Mock };
+  let ingredientsService: {
+    findByIdWithUnit: jest.Mock;
+    resolveQuantity: jest.Mock;
+  };
+  let zonesService: {
+    getWarehouseZoneId: jest.Mock;
+    assertCanReceive: jest.Mock;
+  };
   let auditLogsService: { log: jest.Mock };
   let sessionMock: { withTransaction: jest.Mock; endSession: jest.Mock };
   let connectionMock: { startSession: jest.Mock };
@@ -39,9 +45,33 @@ describe('InventoryService', () => {
         defaultCost: 30,
         baseUnitId: { code: 'kg' },
       }),
+      // Unit-less calls resolve to the base unit 1:1, like IngredientsService.resolveQuantity.
+      resolveQuantity: jest
+        .fn()
+        .mockImplementation(async (id: string, quantity: number) => {
+          const ingredient = (await ingredientsService.findByIdWithUnit(
+            id,
+          )) as {
+            baseUnitId: { code: string };
+          };
+          return {
+            ingredient,
+            baseQuantity: quantity,
+            baseUnit: ingredient.baseUnitId.code,
+            factor: 1,
+            inputQuantity: quantity,
+            inputUnit: ingredient.baseUnitId.code,
+          };
+        }),
     };
     zonesService = {
       getWarehouseZoneId: jest.fn().mockResolvedValue(warehouseZoneId),
+      assertCanReceive: jest.fn().mockImplementation((id: string) => {
+        if (id !== warehouseZoneId) {
+          throw new BadRequestException('ไม่ได้เปิดให้รับสินค้า');
+        }
+        return Promise.resolve({ _id: id });
+      }),
     };
     auditLogsService = { log: jest.fn().mockResolvedValue(undefined) };
     sessionMock = {
@@ -149,7 +179,7 @@ describe('InventoryService', () => {
   });
 
   describe('stockIn', () => {
-    it('rejects when the target zone is not the reserved WAREHOUSE zone', async () => {
+    it('rejects when the target zone does not allow receiving', async () => {
       await expect(
         service.stockIn({ ingredientId, zoneId, quantity: 5 }, userId),
       ).rejects.toThrow(BadRequestException);
@@ -171,7 +201,65 @@ describe('InventoryService', () => {
     });
   });
 
+  describe('stockIn with a pack unit', () => {
+    it('stores the base quantity, divides the per-pack cost and keeps what was keyed in', async () => {
+      zoneStockModel.findOneAndUpdate.mockResolvedValue({ quantity: 24 });
+      ingredientsService.resolveQuantity.mockResolvedValueOnce({
+        ingredient: { _id: ingredientId, defaultCost: 30 },
+        baseQuantity: 24,
+        baseUnit: 'BOTTLE',
+        factor: 12,
+        inputQuantity: 2,
+        inputUnit: 'CASE',
+      });
+      const supplierId = new Types.ObjectId().toString();
+
+      await service.stockIn(
+        {
+          ingredientId,
+          zoneId: warehouseZoneId,
+          quantity: 2,
+          unitId: new Types.ObjectId().toString(),
+          unitCost: 600,
+          supplierId,
+          invoiceNo: ' INV-9 ',
+        },
+        userId,
+      );
+
+      expect(zoneStockModel.findOneAndUpdate).toHaveBeenCalledWith(
+        { ingredientId, zoneId: warehouseZoneId },
+        { $inc: { quantity: 24 } },
+        expect.anything(),
+      );
+      expect(stockMovementsService.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          quantity: 24,
+          unit: 'BOTTLE',
+          unitCost: 50,
+          totalCost: 1200,
+          inputQuantity: 2,
+          inputUnit: 'CASE',
+          supplierId,
+          invoiceNo: 'INV-9',
+        }),
+        sessionMock,
+      );
+    });
+  });
+
   describe('stockOut', () => {
+    it('defaults the reason to KITCHEN_USE', async () => {
+      zoneStockModel.findOneAndUpdate.mockResolvedValue({ quantity: 1 });
+
+      await service.stockOut({ ingredientId, zoneId, quantity: 1 }, userId);
+
+      expect(stockMovementsService.record).toHaveBeenCalledWith(
+        expect.objectContaining({ reason: 'KITCHEN_USE' }),
+        sessionMock,
+      );
+    });
+
     it('decrements stock using the ingredient defaultCost', async () => {
       zoneStockModel.findOneAndUpdate.mockResolvedValue({ quantity: 2 });
 

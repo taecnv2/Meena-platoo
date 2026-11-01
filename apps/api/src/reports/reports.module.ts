@@ -1,6 +1,10 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import {
+  Category,
+  CategorySchema,
+} from '../categories/schemas/category.schema';
+import {
   Ingredient,
   IngredientSchema,
 } from '../ingredients/schemas/ingredient.schema';
@@ -25,6 +29,7 @@ import { User, UserSchema } from '../users/schemas/user.schema';
 import { Waste, WasteSchema } from '../waste/schemas/waste.schema';
 import { Zone, ZoneSchema } from '../zones/schemas/zone.schema';
 import { ReportsController } from './reports.controller';
+import { OperationalReportsService } from './operational-reports.service';
 import { ReportsService } from './reports.service';
 
 @Module({
@@ -39,9 +44,10 @@ import { ReportsService } from './reports.service';
       { name: PurchaseOrder.name, schema: PurchaseOrderSchema },
       { name: Supplier.name, schema: SupplierSchema },
       { name: Waste.name, schema: WasteSchema },
+      { name: Category.name, schema: CategorySchema },
     ]),
   ],
   controllers: [ReportsController],
-  providers: [ReportsService],
+  providers: [ReportsService, OperationalReportsService],
 })
 export class ReportsModule {}

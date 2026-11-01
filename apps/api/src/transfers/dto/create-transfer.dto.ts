@@ -4,6 +4,7 @@ import {
   IsArray,
   IsMongoId,
   IsNumber,
+  IsOptional,
   IsPositive,
   ValidateNested,
 } from 'class-validator';
@@ -16,6 +17,11 @@ export class TransferItemDto {
   @IsNumber()
   @IsPositive()
   quantity!: number;
+
+  /** Unit `quantity` is entered in. Defaults to the ingredient's base unit. */
+  @IsOptional()
+  @IsMongoId()
+  unitId?: string;
 }
 
 export class CreateTransferDto {

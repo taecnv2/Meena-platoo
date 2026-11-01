@@ -1,4 +1,10 @@
-import { IsIn, IsOptional, IsString, MinLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsIn,
+  IsOptional,
+  IsString,
+  MinLength,
+} from 'class-validator';
 import { ZONE_TYPES, type ZoneType } from '../schemas/zone.schema';
 
 export class CreateZoneDto {
@@ -16,4 +22,8 @@ export class CreateZoneDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  allowReceiving?: boolean;
 }

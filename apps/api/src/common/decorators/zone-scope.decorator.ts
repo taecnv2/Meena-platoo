@@ -19,6 +19,12 @@ export interface ZoneScopeOptions {
   idParam?: string;
   /** entity source only: the service class ZoneScopeGuard resolves via ModuleRef to perform the lookup. */
   lookupService?: Type<ZoneLookupService>;
+  /**
+   * When true, a request that carries no zone id passes (the service then falls back to a
+   * server-chosen zone, e.g. the PO's WAREHOUSE delivery zone). A zone id that IS supplied is
+   * still checked against the user's zones.
+   */
+  optional?: boolean;
 }
 
 export const ZONE_SCOPE_KEY = 'zoneScope';

@@ -16,7 +16,10 @@ describe('WasteService', () => {
     countDocuments: jest.Mock;
     findById: jest.Mock;
   };
-  let ingredientsService: { findByIdWithUnit: jest.Mock };
+  let ingredientsService: {
+    findByIdWithUnit: jest.Mock;
+    resolveQuantity: jest.Mock;
+  };
   let inventoryService: { withTransaction: jest.Mock; decrement: jest.Mock };
   let auditLogsService: { log: jest.Mock };
   let notificationsService: { create: jest.Mock };
@@ -37,6 +40,24 @@ describe('WasteService', () => {
         baseUnitId: { code: 'kg' },
         defaultCost: 30,
       }),
+      // Unit-less calls resolve to the base unit 1:1, like IngredientsService.resolveQuantity.
+      resolveQuantity: jest
+        .fn()
+        .mockImplementation(async (id: string, quantity: number) => {
+          const ingredient = (await ingredientsService.findByIdWithUnit(
+            id,
+          )) as {
+            baseUnitId: { code: string };
+          };
+          return {
+            ingredient,
+            baseQuantity: quantity,
+            baseUnit: ingredient.baseUnitId.code,
+            factor: 1,
+            inputQuantity: quantity,
+            inputUnit: ingredient.baseUnitId.code,
+          };
+        }),
     };
     inventoryService = {
       withTransaction: jest.fn((fn: (session: unknown) => Promise<unknown>) =>
