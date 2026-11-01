@@ -1,14 +1,25 @@
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  StreamableFile,
+} from '@nestjs/common';
 import type { Types } from 'mongoose';
 import { RequirePermission } from '../common/decorators/require-permission.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { PERMISSION_CODES } from '../common/constants/permissions';
 import type { RequestUser } from '../common/types/authenticated-request';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
+import { ExportService, type ExportFormat } from '../export/export.service';
 import { CreateZoneDto } from './dto/create-zone.dto';
 import { UpdateZoneStatusDto } from './dto/update-zone-status.dto';
 import { UpdateZoneDto } from './dto/update-zone.dto';
 import { Zone } from './schemas/zone.schema';
+import { ZONE_EXPORT_COLUMNS } from './zone-export.columns';
 import { ZonesService } from './zones.service';
 
 @Controller('zones')
@@ -16,12 +27,33 @@ export class ZonesController {
   constructor(
     private readonly zonesService: ZonesService,
     private readonly auditLogsService: AuditLogsService,
+    private readonly exportService: ExportService,
   ) {}
 
   @RequirePermission(PERMISSION_CODES.ZONES_READ)
   @Get()
   findAll(): Promise<Zone[]> {
     return this.zonesService.findAll();
+  }
+
+  @RequirePermission(PERMISSION_CODES.ZONES_EXPORT)
+  @Get('export')
+  async export(
+    @Query('format') format: ExportFormat,
+    @CurrentUser() user: RequestUser,
+  ): Promise<StreamableFile> {
+    const rows = await this.zonesService.findAll();
+    const buffer = await this.exportService.toFile(
+      format,
+      rows,
+      ZONE_EXPORT_COLUMNS,
+      {
+        title: 'รายชื่อ Zone',
+        generatedAt: new Date(),
+        generatedBy: user.username,
+      },
+    );
+    return this.exportService.streamableFile(buffer, 'zones', format);
   }
 
   @RequirePermission(PERMISSION_CODES.ZONES_READ)

@@ -16,6 +16,7 @@ import { Badge } from '@/components/Badge'
 import { Modal } from '@/components/Modal'
 import { DataTable, type DataTableColumn } from '@/components/DataTable'
 import { ExportButton } from '@/components/ExportButton'
+import { ExcelExportButton } from '@/components/ExcelExportButton'
 import { useToast } from '@/components/Toast'
 import { usePermission } from '@/hooks/usePermission'
 import { PERMISSIONS } from '@/constants/permissions'
@@ -81,6 +82,7 @@ export function IngredientsPage() {
   const canCreate = usePermission(PERMISSIONS.INGREDIENTS_CREATE)
   const canUpdate = usePermission(PERMISSIONS.INGREDIENTS_UPDATE)
   const canImport = usePermission(PERMISSIONS.INGREDIENTS_IMPORT)
+  const canExport = usePermission(PERMISSIONS.INGREDIENTS_EXPORT)
   const [editing, setEditing] = useState<Ingredient | 'new' | null>(null)
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
@@ -271,7 +273,7 @@ export function IngredientsPage() {
           <h1 className="text-xl font-semibold text-text-primary">วัตถุดิบ</h1>
           <p className="text-sm text-text-secondary">จัดการข้อมูลวัตถุดิบทั้งหมด</p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {canImport ? (
             <Link
               to="/master-data/import"
@@ -279,6 +281,12 @@ export function IngredientsPage() {
             >
               <Upload className="size-4" aria-hidden /> นำเข้าจาก Excel
             </Link>
+          ) : null}
+          {canExport ? (
+            <>
+              <ExportButton onExport={(format) => ingredientsApi.exportFile(format)} />
+              <ExcelExportButton fileName="วัตถุดิบ" columns={exportColumns} rows={filteredRows} label="Excel (แก้แล้วนำเข้ากลับได้)" />
+            </>
           ) : null}
           {canCreate ? (
             <Button onClick={openCreate}>
@@ -308,9 +316,6 @@ export function IngredientsPage() {
             value={categoryFilter}
             onChange={(event) => setCategoryFilter(event.target.value)}
           />
-        </div>
-        <div className="sm:ml-auto">
-          <ExportButton fileName="วัตถุดิบ" columns={exportColumns} rows={filteredRows} />
         </div>
       </div>
 

@@ -1,4 +1,5 @@
 import { axiosClient } from './axiosClient'
+import { downloadFile } from './downloadFile'
 
 export function createCrudApi<T, TCreate = Partial<T>, TUpdate = Partial<T>>(resource: string) {
   return {
@@ -7,5 +8,6 @@ export function createCrudApi<T, TCreate = Partial<T>, TUpdate = Partial<T>>(res
     create: (payload: TCreate) => axiosClient.post<T>(`/${resource}`, payload).then((response) => response.data),
     update: (id: string, payload: TUpdate) =>
       axiosClient.patch<T>(`/${resource}/${id}`, payload).then((response) => response.data),
+    exportFile: (format: 'csv' | 'pdf') => downloadFile(`/${resource}/export`, { format }),
   }
 }

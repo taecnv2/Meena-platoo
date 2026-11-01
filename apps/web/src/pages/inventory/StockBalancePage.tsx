@@ -10,13 +10,14 @@ import { Badge } from '@/components/Badge'
 import { DataTable, type DataTableColumn } from '@/components/DataTable'
 import { ExportButton } from '@/components/ExportButton'
 import { useAccessibleZoneIds } from '@/hooks/useZoneAccess'
+import { usePermission } from '@/hooks/usePermission'
+import { PERMISSIONS } from '@/constants/permissions'
 import { formatQuantity } from '@/utils/format'
 import { formatPackBreakdown } from '@/utils/units'
-import type { ExcelColumn } from '@/utils/excel'
 import type { ZoneStock } from '@/types/entities'
-import { todayStamp } from './components/inventoryFormat'
 
 export function StockBalancePage() {
+  const canExport = usePermission(PERMISSIONS.INVENTORY_EXPORT)
   const accessibleZoneIds = useAccessibleZoneIds()
   const [zoneFilter, setZoneFilter] = useState('')
   const [search, setSearch] = useState('')
@@ -86,15 +87,6 @@ export function StockBalancePage() {
     },
   ]
 
-  const exportColumns: Array<ExcelColumn<ZoneStock>> = [
-    { header: 'รหัส', value: (row) => ingredientMap.get(row.ingredientId)?.code ?? '', width: 14 },
-    { header: 'วัตถุดิบ', value: (row) => ingredientMap.get(row.ingredientId)?.name ?? '', width: 30 },
-    { header: 'Zone', value: (row) => zoneMap.get(row.zoneId) ?? '', width: 20 },
-    { header: 'คงเหลือ', value: (row) => row.quantity, width: 12 },
-    { header: 'หน่วย', value: (row) => getBaseUnitName(row), width: 10 },
-    { header: 'แยกเป็นแพ็ค', value: (row) => getPackBreakdown(row) ?? '', width: 22 },
-  ]
-
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -102,7 +94,9 @@ export function StockBalancePage() {
           <h1 className="text-xl font-semibold text-text-primary">สต๊อกคงเหลือ</h1>
           <p className="text-sm text-text-secondary">ดูจำนวนวัตถุดิบคงเหลือแยกตาม Zone</p>
         </div>
-        <ExportButton fileName={`สต๊อกคงเหลือ-${todayStamp()}`} columns={exportColumns} rows={rows} />
+        {canExport ? (
+          <ExportButton onExport={(format) => inventoryApi.exportFile(format, zoneFilter ? { zoneId: zoneFilter } : undefined)} />
+        ) : null}
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:max-w-2xl sm:grid-cols-2">

@@ -28,9 +28,9 @@ export function DataTable<T>({ columns, rows, rowKey, emptyMessage = 'ไม่�
 
   return (
     <>
-      <div className="hidden overflow-x-auto rounded-xl border border-border sm:block">
+      <div className="hidden overflow-x-auto rounded-xl border border-border shadow-sm sm:block">
         <table className="w-full min-w-[640px] text-left text-sm">
-          <thead className="bg-slate-50 text-text-secondary">
+          <thead className="sticky top-0 z-10 bg-slate-50 text-text-secondary">
             <tr>
               {columns.map((column) => (
                 <th key={column.key} className="px-4 py-3 font-medium">
@@ -41,7 +41,7 @@ export function DataTable<T>({ columns, rows, rowKey, emptyMessage = 'ไม่�
           </thead>
           <tbody className="divide-y divide-border">
             {rows.map((row) => (
-              <tr key={rowKey(row)} className="hover:bg-slate-50">
+              <tr key={rowKey(row)} className="transition-colors hover:bg-slate-50/70">
                 {columns.map((column) => (
                   <td key={column.key} className={cn('px-4 py-3 align-middle', column.className)}>
                     {column.render(row)}
@@ -55,7 +55,7 @@ export function DataTable<T>({ columns, rows, rowKey, emptyMessage = 'ไม่�
 
       <div className="flex flex-col gap-3 sm:hidden">
         {rows.map((row) => (
-          <div key={rowKey(row)} className="rounded-xl border border-border bg-white p-4">
+          <div key={rowKey(row)} className="rounded-xl border border-border bg-white p-4 shadow-sm">
             {columns.map((column) => (
               <div key={column.key} className="flex items-center justify-between gap-3 py-1 text-sm first:pt-0 last:pb-0">
                 <span className="shrink-0 text-text-secondary">{column.header}</span>

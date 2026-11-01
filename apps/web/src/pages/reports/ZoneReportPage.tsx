@@ -3,11 +3,15 @@ import { useQuery } from '@tanstack/react-query'
 import { reportsApi } from '@/api/endpoints/reports'
 import { DataTable, type DataTableColumn } from '@/components/DataTable'
 import { DateRangeFilter } from '@/components/DateRangeFilter'
+import { ExportButton } from '@/components/ExportButton'
+import { usePermission } from '@/hooks/usePermission'
+import { PERMISSIONS } from '@/constants/permissions'
 import { formatCurrency, formatNumber } from '@/utils/format'
 import { getPresetRange, type DateRangeValue } from '@/utils/dateRange'
 import type { ZoneReportRow } from '@/types/entities'
 
 export function ZoneReportPage() {
+  const canExport = usePermission(PERMISSIONS.REPORTS_EXPORT)
   const [dateRange, setDateRange] = useState<DateRangeValue>(() => getPresetRange('thisMonth'))
 
   const { data, isLoading } = useQuery({
@@ -32,9 +36,21 @@ export function ZoneReportPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-xl font-semibold text-text-primary">รายงานตาม Zone</h1>
-        <p className="text-sm text-text-secondary">สต๊อก การใช้งาน การโอน และการเบิกสินค้าแยกตาม Zone</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-text-primary">รายงานตาม Zone</h1>
+          <p className="text-sm text-text-secondary">สต๊อก การใช้งาน การโอน และการเบิกสินค้าแยกตาม Zone</p>
+        </div>
+        {canExport ? (
+          <ExportButton
+            onExport={(format) =>
+              reportsApi.exportZone(format, {
+                dateFrom: dateRange.dateFrom ?? undefined,
+                dateTo: dateRange.dateTo ?? undefined,
+              })
+            }
+          />
+        ) : null}
       </div>
 
       <DateRangeFilter value={dateRange} onChange={setDateRange} className="max-w-lg" />

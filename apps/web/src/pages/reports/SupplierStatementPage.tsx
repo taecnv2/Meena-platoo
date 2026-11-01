@@ -8,7 +8,7 @@ import { Button } from '@/components/Button'
 import { Card, CardBody } from '@/components/Card'
 import { DateRangeFilter } from '@/components/DateRangeFilter'
 import { EmptyState } from '@/components/EmptyState'
-import { ExportButton } from '@/components/ExportButton'
+import { ExcelExportButton } from '@/components/ExcelExportButton'
 import { LoadingState } from '@/components/LoadingState'
 import { Select } from '@/components/Select'
 import { formatDate } from '@/utils/format'
@@ -146,7 +146,7 @@ export function SupplierStatementPage() {
             <Button type="button" variant="secondary" size="sm" onClick={() => window.print()}>
               <Printer className="size-4" aria-hidden /> พิมพ์
             </Button>
-            <ExportButton fileName={exportFileName} columns={EXPORT_COLUMNS} rows={exportRows} />
+            <ExcelExportButton fileName={exportFileName} columns={EXPORT_COLUMNS} rows={exportRows} />
           </div>
         ) : null}
       </div>

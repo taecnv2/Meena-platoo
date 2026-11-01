@@ -8,12 +8,16 @@ import { Select } from '@/components/Select'
 import { Card, CardBody, CardHeader } from '@/components/Card'
 import { DataTable, type DataTableColumn } from '@/components/DataTable'
 import { DateRangeFilter } from '@/components/DateRangeFilter'
+import { ExportButton } from '@/components/ExportButton'
 import { LoadingState } from '@/components/LoadingState'
+import { usePermission } from '@/hooks/usePermission'
+import { PERMISSIONS } from '@/constants/permissions'
 import { formatCurrency, formatNumber } from '@/utils/format'
 import { getPresetRange, type DateRangeValue } from '@/utils/dateRange'
 import type { PurchaseReportIngredientRow, PurchaseReportSupplierRow } from '@/types/entities'
 
 export function PurchaseReportPage() {
+  const canExport = usePermission(PERMISSIONS.REPORTS_EXPORT)
   const [dateRange, setDateRange] = useState<DateRangeValue>(() => getPresetRange('thisMonth'))
   const [supplierFilter, setSupplierFilter] = useState('')
 
@@ -42,9 +46,22 @@ export function PurchaseReportPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-xl font-semibold text-text-primary">รายงานจัดซื้อ</h1>
-        <p className="text-sm text-text-secondary">สรุปการสั่งซื้อและรับสินค้าตาม Supplier และวัตถุดิบ</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-text-primary">รายงานจัดซื้อ</h1>
+          <p className="text-sm text-text-secondary">สรุปการสั่งซื้อและรับสินค้าตาม Supplier และวัตถุดิบ</p>
+        </div>
+        {canExport ? (
+          <ExportButton
+            onExport={(format) =>
+              reportsApi.exportPurchase(format, {
+                dateFrom: dateRange.dateFrom ?? undefined,
+                dateTo: dateRange.dateTo ?? undefined,
+                supplierId: supplierFilter || undefined,
+              })
+            }
+          />
+        ) : null}
       </div>
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end">

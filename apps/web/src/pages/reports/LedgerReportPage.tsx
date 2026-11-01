@@ -9,7 +9,7 @@ import { Button } from '@/components/Button'
 import { DataTable, type DataTableColumn } from '@/components/DataTable'
 import { DateRangeFilter } from '@/components/DateRangeFilter'
 import { EmptyState } from '@/components/EmptyState'
-import { ExportButton } from '@/components/ExportButton'
+import { ExcelExportButton } from '@/components/ExcelExportButton'
 import { Input } from '@/components/Input'
 import { LoadingState } from '@/components/LoadingState'
 import { Select } from '@/components/Select'
@@ -203,7 +203,7 @@ export function LedgerReportPage() {
               </button>
             ))}
           </div>
-          <ExportButton fileName={exportFileName} columns={exportColumns} rows={rows} />
+          <ExcelExportButton fileName={exportFileName} columns={exportColumns} rows={rows} />
         </div>
       </div>
 

@@ -10,21 +10,22 @@ import { DataTable, type DataTableColumn } from '@/components/DataTable'
 import { DateRangeFilter } from '@/components/DateRangeFilter'
 import { ExportButton } from '@/components/ExportButton'
 import { MOVEMENT_TYPE_LABEL } from '@/constants/labels'
+import { usePermission } from '@/hooks/usePermission'
+import { PERMISSIONS } from '@/constants/permissions'
 import { formatDateTime, formatQuantity } from '@/utils/format'
 import type { DateRangeValue } from '@/utils/dateRange'
-import type { ExcelColumn } from '@/utils/excel'
 import { MOVEMENT_TYPES, type MovementType, type StockMovement } from '@/types/entities'
 import {
   buildUnitNameByCode,
   formatInputQuantity,
   formatMovementReason,
   formatWeight,
-  todayStamp,
 } from './components/inventoryFormat'
 
 const INCOMING_TYPES: MovementType[] = ['STOCK_IN', 'TRANSFER_IN', 'ADJUSTMENT_IN', 'PRODUCTION_IN']
 
 export function MovementsPage() {
+  const canExport = usePermission(PERMISSIONS.INVENTORY_EXPORT)
   const [ingredientFilter, setIngredientFilter] = useState('')
   const [zoneFilter, setZoneFilter] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
@@ -70,20 +71,6 @@ export function MovementsPage() {
     { key: 'remark', header: 'หมายเหตุ', render: (row) => row.remark || '-' },
   ]
 
-  const exportColumns: Array<ExcelColumn<StockMovement>> = [
-    { header: 'วันที่', value: (row) => formatDateTime(row.createdAt), width: 20 },
-    { header: 'รหัส', value: (row) => ingredientMap.get(row.ingredientId)?.code ?? '', width: 14 },
-    { header: 'วัตถุดิบ', value: (row) => ingredientMap.get(row.ingredientId)?.name ?? '', width: 28 },
-    { header: 'Zone', value: (row) => zoneMap.get(row.zoneId) ?? '', width: 18 },
-    { header: 'ประเภท', value: (row) => MOVEMENT_TYPE_LABEL[row.movementType] ?? row.movementType, width: 16 },
-    { header: 'จำนวน', value: (row) => row.quantity, width: 12 },
-    { header: 'หน่วย', value: (row) => unitName(row.unit), width: 10 },
-    { header: 'บันทึกเป็น', value: (row) => formatInputQuantity(row, unitNameByCode) ?? '', width: 16 },
-    { header: 'เหตุผล', value: (row) => formatMovementReason(row.reason) ?? '', width: 22 },
-    { header: 'น้ำหนัก (กก.)', value: (row) => row.weight ?? null, width: 14 },
-    { header: 'หมายเหตุ', value: (row) => row.remark ?? '', width: 28 },
-  ]
-
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -91,7 +78,19 @@ export function MovementsPage() {
           <h1 className="text-xl font-semibold text-text-primary">ประวัติการเคลื่อนไหวสต๊อก</h1>
           <p className="text-sm text-text-secondary">ประวัติการรับ-จ่าย-โอน-ปรับปรุง-แปรรูปสต๊อกทั้งหมด</p>
         </div>
-        <ExportButton fileName={`ประวัติสต๊อก-${todayStamp()}`} columns={exportColumns} rows={movements ?? []} />
+        {canExport ? (
+          <ExportButton
+            onExport={(format) =>
+              stockMovementsApi.exportFile(format, {
+                ingredientId: ingredientFilter || undefined,
+                zoneId: zoneFilter || undefined,
+                movementType: typeFilter || undefined,
+                dateFrom: dateRange.dateFrom ?? undefined,
+                dateTo: dateRange.dateTo ?? undefined,
+              })
+            }
+          />
+        ) : null}
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">

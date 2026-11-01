@@ -4,13 +4,17 @@ import { reportsApi } from '@/api/endpoints/reports'
 import { StatCard } from '@/components/StatCard'
 import { Select } from '@/components/Select'
 import { DateRangeFilter } from '@/components/DateRangeFilter'
+import { ExportButton } from '@/components/ExportButton'
 import { LoadingState } from '@/components/LoadingState'
+import { usePermission } from '@/hooks/usePermission'
+import { PERMISSIONS } from '@/constants/permissions'
 import { COMPARISON_METRIC_LABEL, COMPARISON_PERIOD_LABEL } from '@/constants/labels'
 import { formatCurrency, formatDate } from '@/utils/format'
 import type { DateRangeValue } from '@/utils/dateRange'
 import { COMPARISON_PERIOD_TYPES, type ComparisonPeriodType } from '@/types/entities'
 
 export function ComparisonReportPage() {
+  const canExport = usePermission(PERMISSIONS.REPORTS_EXPORT)
   const [periodType, setPeriodType] = useState<ComparisonPeriodType>('THIS_MONTH_VS_LAST_MONTH')
   const [customRange, setCustomRange] = useState<DateRangeValue>({ dateFrom: null, dateTo: null })
 
@@ -24,9 +28,18 @@ export function ComparisonReportPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-xl font-semibold text-text-primary">รายงานเปรียบเทียบ</h1>
-        <p className="text-sm text-text-secondary">เปรียบเทียบตัวชี้วัดสำคัญระหว่างช่วงเวลาปัจจุบันและช่วงก่อนหน้า</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-text-primary">รายงานเปรียบเทียบ</h1>
+          <p className="text-sm text-text-secondary">เปรียบเทียบตัวชี้วัดสำคัญระหว่างช่วงเวลาปัจจุบันและช่วงก่อนหน้า</p>
+        </div>
+        {canExport ? (
+          <ExportButton
+            onExport={(format) =>
+              reportsApi.exportComparison(format, periodType, customRange.dateFrom ?? undefined, customRange.dateTo ?? undefined)
+            }
+          />
+        ) : null}
       </div>
 
       <div className="max-w-xs">

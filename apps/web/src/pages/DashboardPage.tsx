@@ -14,6 +14,7 @@ import {
   CalendarClock,
   Trash2,
 } from 'lucide-react'
+import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { dashboardApi } from '@/api/endpoints/dashboard'
 import { StatCard } from '@/components/StatCard'
 import { Card, CardBody, CardHeader } from '@/components/Card'
@@ -22,7 +23,13 @@ import { DateRangeFilter } from '@/components/DateRangeFilter'
 import { formatCurrency, formatNumber } from '@/utils/format'
 import { getPresetRange, type DateRangeValue } from '@/utils/dateRange'
 import { STOCK_COUNT_STATUS_LABEL } from '@/constants/labels'
-import type { StockCountStatus } from '@/types/entities'
+import { STOCK_COUNT_STATUSES, type StockCountStatus } from '@/types/entities'
+
+const STOCK_COUNT_STATUS_COLOR: Record<StockCountStatus, string> = {
+  PENDING_APPROVAL: '#d97706',
+  APPROVED: '#16a34a',
+  CANCELLED: '#94a3b8',
+}
 
 export function DashboardPage() {
   const [dateRange, setDateRange] = useState<DateRangeValue>(() => getPresetRange('thisMonth'))
@@ -38,12 +45,13 @@ export function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-xl font-semibold text-text-primary">ภาพรวม</h1>
-        <p className="text-sm text-text-secondary">สรุปข้อมูลสต๊อกและการดำเนินงานของร้าน Meena Platoo</p>
+      <div className="flex flex-col gap-4 rounded-xl bg-gradient-to-r from-primary-light/40 to-transparent p-5 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-text-primary">ภาพรวม</h1>
+          <p className="text-sm text-text-secondary">สรุปข้อมูลสต๊อกและการดำเนินงานของร้าน Meena Platoo</p>
+        </div>
+        <DateRangeFilter value={dateRange} onChange={setDateRange} className="max-w-lg" />
       </div>
-
-      <DateRangeFilter value={dateRange} onChange={setDateRange} className="max-w-lg" />
 
       {isLoading || !data ? (
         <LoadingState />
@@ -119,16 +127,32 @@ export function DashboardPage() {
                 <ClipboardCheck className="size-4 text-primary" />
                 <span className="font-medium text-text-primary">สถานะการตรวจนับสต๊อก (ช่วงที่เลือก)</span>
               </CardHeader>
-              <CardBody className="flex flex-col gap-2">
-                {Object.entries(data.operations.stockCountStatus).length === 0 ? (
+              <CardBody>
+                {Object.keys(data.operations.stockCountStatus).length === 0 ? (
                   <p className="text-sm text-text-secondary">ยังไม่มีรายการตรวจนับสต๊อกในช่วงที่เลือก</p>
                 ) : (
-                  (Object.entries(data.operations.stockCountStatus) as Array<[string, number]>).map(([status, count]) => (
-                    <div key={status} className="flex items-center justify-between text-sm">
-                      <span className="text-text-secondary">{STOCK_COUNT_STATUS_LABEL[status as StockCountStatus] ?? status}</span>
-                      <span className="font-medium text-text-primary">{count}</span>
-                    </div>
-                  ))
+                  <div className="h-48 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={STOCK_COUNT_STATUSES.map((status) => ({
+                          status,
+                          label: STOCK_COUNT_STATUS_LABEL[status],
+                          count: data.operations.stockCountStatus[status] ?? 0,
+                        }))}
+                        layout="vertical"
+                        margin={{ left: 8, right: 16, top: 4, bottom: 4 }}
+                      >
+                        <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12 }} stroke="#94a3b8" />
+                        <YAxis type="category" dataKey="label" width={90} tick={{ fontSize: 12 }} stroke="#94a3b8" />
+                        <Tooltip formatter={(value) => [`${value} รายการ`, '']} labelFormatter={() => ''} />
+                        <Bar dataKey="count" radius={[0, 6, 6, 0]} barSize={22}>
+                          {STOCK_COUNT_STATUSES.map((status) => (
+                            <Cell key={status} fill={STOCK_COUNT_STATUS_COLOR[status]} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
                 )}
               </CardBody>
             </Card>

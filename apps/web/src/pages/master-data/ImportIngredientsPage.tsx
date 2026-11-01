@@ -6,7 +6,7 @@ import { getErrorMessage } from '@/api/errors'
 import { Button } from '@/components/Button'
 import { Card, CardBody, CardHeader } from '@/components/Card'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
-import { ExportButton } from '@/components/ExportButton'
+import { ExcelExportButton } from '@/components/ExcelExportButton'
 import { LoadingState } from '@/components/LoadingState'
 import { useToast } from '@/components/Toast'
 import { buildTemplateSheet, INGREDIENT_IMPORT_COLUMNS, mapSheetToImportRows, type MappedImport } from '@/features/import/ingredientImportColumns'
@@ -207,7 +207,7 @@ export function ImportIngredientsPage() {
             <p>หมวดหมู่และหน่วยที่ยังไม่มีในระบบ จะถูกสร้างให้อัตโนมัติ</p>
           </div>
           <div>
-            <ExportButton fileName="ไฟล์ตัวอย่างนำเข้าวัตถุดิบ" columns={TEMPLATE_COLUMNS} rows={TEMPLATE_ROWS} label="ดาวน์โหลดไฟล์ตัวอย่าง" />
+            <ExcelExportButton fileName="ไฟล์ตัวอย่างนำเข้าวัตถุดิบ" columns={TEMPLATE_COLUMNS} rows={TEMPLATE_ROWS} label="ดาวน์โหลดไฟล์ตัวอย่าง" />
           </div>
           <ImportColumnGuide />
         </CardBody>

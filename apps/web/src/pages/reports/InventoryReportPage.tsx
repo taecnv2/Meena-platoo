@@ -6,12 +6,16 @@ import { Badge } from '@/components/Badge'
 import { Select } from '@/components/Select'
 import { DataTable, type DataTableColumn } from '@/components/DataTable'
 import { DateRangeFilter } from '@/components/DateRangeFilter'
+import { ExportButton } from '@/components/ExportButton'
+import { usePermission } from '@/hooks/usePermission'
+import { PERMISSIONS } from '@/constants/permissions'
 import { STOCK_STATUS_COLOR, STOCK_STATUS_LABEL } from '@/constants/labels'
 import { formatCurrency, formatQuantity } from '@/utils/format'
 import { getPresetRange, type DateRangeValue } from '@/utils/dateRange'
 import type { InventoryReportRow } from '@/types/entities'
 
 export function InventoryReportPage() {
+  const canExport = usePermission(PERMISSIONS.REPORTS_EXPORT)
   const [dateRange, setDateRange] = useState<DateRangeValue>(() => getPresetRange('thisMonth'))
   const [zoneFilter, setZoneFilter] = useState('')
 
@@ -41,9 +45,22 @@ export function InventoryReportPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-xl font-semibold text-text-primary">รายงานสต๊อก</h1>
-        <p className="text-sm text-text-secondary">สต๊อกคงเหลือ สถานะ และการเคลื่อนไหวของแต่ละวัตถุดิบ</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-text-primary">รายงานสต๊อก</h1>
+          <p className="text-sm text-text-secondary">สต๊อกคงเหลือ สถานะ และการเคลื่อนไหวของแต่ละวัตถุดิบ</p>
+        </div>
+        {canExport ? (
+          <ExportButton
+            onExport={(format) =>
+              reportsApi.exportInventory(format, {
+                dateFrom: dateRange.dateFrom ?? undefined,
+                dateTo: dateRange.dateTo ?? undefined,
+                zoneId: zoneFilter || undefined,
+              })
+            }
+          />
+        ) : null}
       </div>
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end">

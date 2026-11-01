@@ -1,43 +1,38 @@
 import { useState } from 'react'
-import { Download } from 'lucide-react'
+import { FileSpreadsheet, FileText } from 'lucide-react'
 import { Button } from './Button'
 import { useToast } from './Toast'
-import { exportToExcel, type ExcelColumn } from '@/utils/excel'
+import { getErrorMessage } from '@/api/errors'
 
-interface ExportButtonProps<T> {
-  fileName: string
-  columns: Array<ExcelColumn<T>>
-  rows: T[]
-  label?: string
+type ExportFormat = 'csv' | 'pdf'
+
+interface ExportButtonProps {
+  onExport: (format: ExportFormat) => Promise<void>
 }
 
-/** "ส่งออก Excel" -- downloads exactly what the table on screen shows. */
-export function ExportButton<T>({ fileName, columns, rows, label = 'ส่งออก Excel' }: ExportButtonProps<T>) {
+export function ExportButton({ onExport }: ExportButtonProps) {
   const toast = useToast()
-  const [isExporting, setIsExporting] = useState(false)
+  const [loading, setLoading] = useState<ExportFormat | null>(null)
 
-  const handleClick = async () => {
-    setIsExporting(true)
+  const handleExport = async (format: ExportFormat) => {
+    setLoading(format)
     try {
-      await exportToExcel(fileName, columns, rows)
-    } catch {
-      toast.show('error', 'ส่งออกไฟล์ไม่สำเร็จ กรุณาลองใหม่')
+      await onExport(format)
+    } catch (error) {
+      toast.show('error', getErrorMessage(error))
     } finally {
-      setIsExporting(false)
+      setLoading(null)
     }
   }
 
   return (
-    <Button
-      type="button"
-      variant="secondary"
-      size="sm"
-      onClick={() => void handleClick()}
-      isLoading={isExporting}
-      disabled={rows.length === 0}
-    >
-      {isExporting ? null : <Download className="size-4" aria-hidden />}
-      {label}
-    </Button>
+    <div className="flex items-center gap-2">
+      <Button variant="secondary" size="md" isLoading={loading === 'csv'} disabled={loading !== null} onClick={() => void handleExport('csv')}>
+        <FileSpreadsheet className="size-4" /> CSV
+      </Button>
+      <Button variant="secondary" size="md" isLoading={loading === 'pdf'} disabled={loading !== null} onClick={() => void handleExport('pdf')}>
+        <FileText className="size-4" /> PDF
+      </Button>
+    </div>
   )
 }

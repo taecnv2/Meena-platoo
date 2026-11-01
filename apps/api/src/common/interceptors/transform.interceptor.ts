@@ -1,5 +1,6 @@
 import {
   Injectable,
+  StreamableFile,
   type CallHandler,
   type ExecutionContext,
   type NestInterceptor,
@@ -15,12 +16,18 @@ export interface SuccessEnvelope<T> {
 @Injectable()
 export class TransformInterceptor<T> implements NestInterceptor<
   T,
-  SuccessEnvelope<T>
+  SuccessEnvelope<T> | StreamableFile
 > {
   intercept(
     _context: ExecutionContext,
     next: CallHandler<T>,
-  ): Observable<SuccessEnvelope<T>> {
-    return next.handle().pipe(map((data) => ({ success: true, data })));
+  ): Observable<SuccessEnvelope<T> | StreamableFile> {
+    return next
+      .handle()
+      .pipe(
+        map((data) =>
+          data instanceof StreamableFile ? data : { success: true, data },
+        ),
+      );
   }
 }

@@ -11,6 +11,7 @@ import { Input } from '@/components/Input'
 import { Badge } from '@/components/Badge'
 import { Modal } from '@/components/Modal'
 import { DataTable, type DataTableColumn } from '@/components/DataTable'
+import { ExportButton } from '@/components/ExportButton'
 import { useToast } from '@/components/Toast'
 import { usePermission } from '@/hooks/usePermission'
 import { PERMISSIONS } from '@/constants/permissions'
@@ -31,6 +32,7 @@ export function SuppliersPage() {
   const toast = useToast()
   const canCreate = usePermission(PERMISSIONS.SUPPLIERS_CREATE)
   const canUpdate = usePermission(PERMISSIONS.SUPPLIERS_UPDATE)
+  const canExport = usePermission(PERMISSIONS.SUPPLIERS_EXPORT)
   const [editing, setEditing] = useState<Supplier | 'new' | null>(null)
 
   const { data, isLoading } = useQuery({ queryKey: ['suppliers'], queryFn: suppliersApi.list })
@@ -104,11 +106,14 @@ export function SuppliersPage() {
           <h1 className="text-xl font-semibold text-text-primary">Supplier</h1>
           <p className="text-sm text-text-secondary">จัดการข้อมูลผู้จำหน่ายวัตถุดิบ</p>
         </div>
-        {canCreate ? (
-          <Button onClick={openCreate}>
-            <Plus className="size-4" /> เพิ่ม Supplier
-          </Button>
-        ) : null}
+        <div className="flex items-center gap-2">
+          {canExport ? <ExportButton onExport={(format) => suppliersApi.exportFile(format)} /> : null}
+          {canCreate ? (
+            <Button onClick={openCreate}>
+              <Plus className="size-4" /> เพิ่ม Supplier
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       <DataTable columns={columns} rows={data ?? []} rowKey={(row) => row._id} isLoading={isLoading} emptyMessage="ยังไม่มี Supplier" />

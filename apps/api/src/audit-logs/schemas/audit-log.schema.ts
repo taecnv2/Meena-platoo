@@ -19,6 +19,7 @@ export const AUDIT_ACTIONS = [
   'WASTE_CREATED',
   'INGREDIENTS_IMPORTED',
   'PRODUCTION_CREATED',
+  'DATA_EXPORTED',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 

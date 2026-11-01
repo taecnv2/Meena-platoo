@@ -8,13 +8,17 @@ import { Select } from '@/components/Select'
 import { Card, CardBody, CardHeader } from '@/components/Card'
 import { DataTable, type DataTableColumn } from '@/components/DataTable'
 import { DateRangeFilter } from '@/components/DateRangeFilter'
+import { ExportButton } from '@/components/ExportButton'
 import { LoadingState } from '@/components/LoadingState'
+import { usePermission } from '@/hooks/usePermission'
+import { PERMISSIONS } from '@/constants/permissions'
 import { MOVEMENT_TYPE_LABEL } from '@/constants/labels'
 import { formatCurrency } from '@/utils/format'
 import { getPresetRange, type DateRangeValue } from '@/utils/dateRange'
 import type { CostReportIngredientRow, CostReportZoneRow, MovementType } from '@/types/entities'
 
 export function CostReportPage() {
+  const canExport = usePermission(PERMISSIONS.REPORTS_EXPORT)
   const [dateRange, setDateRange] = useState<DateRangeValue>(() => getPresetRange('thisMonth'))
   const [zoneFilter, setZoneFilter] = useState('')
 
@@ -41,11 +45,24 @@ export function CostReportPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-xl font-semibold text-text-primary">รายงานต้นทุน</h1>
-        <p className="text-sm text-text-secondary">
-          ต้นทุนวัตถุดิบที่ใช้ไป (เบิกใช้ + ของเสีย + ปรับปรุงสต๊อกออก) แยกตามวัตถุดิบและ Zone
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-text-primary">รายงานต้นทุน</h1>
+          <p className="text-sm text-text-secondary">
+            ต้นทุนวัตถุดิบที่ใช้ไป (เบิกใช้ + ของเสีย + ปรับปรุงสต๊อกออก) แยกตามวัตถุดิบและ Zone
+          </p>
+        </div>
+        {canExport ? (
+          <ExportButton
+            onExport={(format) =>
+              reportsApi.exportCost(format, {
+                dateFrom: dateRange.dateFrom ?? undefined,
+                dateTo: dateRange.dateTo ?? undefined,
+                zoneId: zoneFilter || undefined,
+              })
+            }
+          />
+        ) : null}
       </div>
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end">

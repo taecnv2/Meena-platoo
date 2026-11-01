@@ -10,7 +10,7 @@ import { Card, CardBody, CardHeader } from '@/components/Card'
 import { DataTable, type DataTableColumn } from '@/components/DataTable'
 import { DateRangeFilter } from '@/components/DateRangeFilter'
 import { EmptyState } from '@/components/EmptyState'
-import { ExportButton } from '@/components/ExportButton'
+import { ExcelExportButton } from '@/components/ExcelExportButton'
 import { LoadingState } from '@/components/LoadingState'
 import { Select } from '@/components/Select'
 import { formatCurrency, formatNumber } from '@/utils/format'
@@ -136,7 +136,7 @@ export function ConsignmentReportPage() {
           />
         </div>
         <div className="sm:ml-auto">
-          <ExportButton fileName={`สินค้าฝากขาย_${dateRange.dateFrom ?? 'ทั้งหมด'}_${dateRange.dateTo ?? ''}`} columns={exportColumns} rows={exportRows} />
+          <ExcelExportButton fileName={`สินค้าฝากขาย_${dateRange.dateFrom ?? 'ทั้งหมด'}_${dateRange.dateTo ?? ''}`} columns={exportColumns} rows={exportRows} />
         </div>
       </div>
 

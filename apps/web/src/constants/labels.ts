@@ -170,4 +170,5 @@ export const AUDIT_ACTION_LABEL: Record<AuditAction, string> = {
   WASTE_CREATED: 'บันทึกของเสีย',
   INGREDIENTS_IMPORTED: 'นำเข้าวัตถุดิบจาก Excel',
   PRODUCTION_CREATED: 'บันทึกการแปรรูป/แบ่ง Portion',
+  DATA_EXPORTED: 'ส่งออกข้อมูล',
 }

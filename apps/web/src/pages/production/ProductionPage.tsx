@@ -11,7 +11,7 @@ import { Card, CardBody } from '@/components/Card'
 import { DataTable, type DataTableColumn } from '@/components/DataTable'
 import { DateRangeFilter } from '@/components/DateRangeFilter'
 import { EmptyState } from '@/components/EmptyState'
-import { ExportButton } from '@/components/ExportButton'
+import { ExcelExportButton } from '@/components/ExcelExportButton'
 import { LoadingState } from '@/components/LoadingState'
 import { usePermission } from '@/hooks/usePermission'
 import { useAccessibleZoneIds } from '@/hooks/useZoneAccess'
@@ -145,7 +145,7 @@ export function ProductionPage() {
       <section className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-semibold text-text-primary">ประวัติการแปรรูป</h2>
-          <ExportButton fileName="ประวัติการแปรรูป" columns={exportColumns} rows={batches} />
+          <ExcelExportButton fileName="ประวัติการแปรรูป" columns={exportColumns} rows={batches} />
         </div>
         <DateRangeFilter value={dateRange} onChange={setDateRange} />
         {batchesQuery.isError ? (

@@ -31,6 +31,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { ReportsModule } from './reports/reports.module';
 import { ProductionModule } from './production/production.module';
 import { ImportsModule } from './imports/imports.module';
+import { ExportModule } from './export/export.module';
 
 @Module({
   imports: [
@@ -62,6 +63,7 @@ import { ImportsModule } from './imports/imports.module';
     ReportsModule,
     ProductionModule,
     ImportsModule,
+    ExportModule,
   ],
   controllers: [AppController],
   providers: [

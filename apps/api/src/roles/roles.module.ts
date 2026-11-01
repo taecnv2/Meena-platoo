@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AuditLogsModule } from '../audit-logs/audit-logs.module';
+import { PermissionsModule } from '../permissions/permissions.module';
 import { RolesController } from './roles.controller';
 import { RolesService } from './roles.service';
 import { Role, RoleSchema } from './schemas/role.schema';
@@ -9,6 +10,7 @@ import { Role, RoleSchema } from './schemas/role.schema';
   imports: [
     MongooseModule.forFeature([{ name: Role.name, schema: RoleSchema }]),
     AuditLogsModule,
+    PermissionsModule,
   ],
   controllers: [RolesController],
   providers: [RolesService],
