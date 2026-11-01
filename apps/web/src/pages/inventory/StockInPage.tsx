@@ -12,6 +12,7 @@ import { getErrorMessage } from '@/api/errors'
 import { Button } from '@/components/Button'
 import { Input } from '@/components/Input'
 import { Select } from '@/components/Select'
+import { SearchableSelect } from '@/components/SearchableSelect'
 import { UnitSelect } from '@/components/UnitSelect'
 import { Card, CardBody } from '@/components/Card'
 import { DataTable, type DataTableColumn } from '@/components/DataTable'
@@ -190,7 +191,7 @@ export function StockInPage() {
                 error={errors.zoneId?.message}
                 {...register('zoneId')}
               />
-              <Select
+              <SearchableSelect
                 label="วัตถุดิบ"
                 placeholder="เลือกวัตถุดิบ"
                 options={(ingredients ?? []).map((i) => ({ value: i._id, label: `${i.name} (${i.code})` }))}

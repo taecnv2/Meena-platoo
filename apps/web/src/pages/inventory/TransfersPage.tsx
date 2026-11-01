@@ -11,6 +11,7 @@ import { zonesApi } from '@/api/endpoints/zones'
 import { getErrorMessage } from '@/api/errors'
 import { Button } from '@/components/Button'
 import { Select } from '@/components/Select'
+import { SearchableSelect } from '@/components/SearchableSelect'
 import { Input } from '@/components/Input'
 import { UnitSelect } from '@/components/UnitSelect'
 import { Badge } from '@/components/Badge'
@@ -172,7 +173,7 @@ export function TransfersPage() {
             error={errors.toZoneId?.message}
             {...register('toZoneId')}
           />
-          <Select
+          <SearchableSelect
             label="วัตถุดิบ"
             placeholder="เลือกวัตถุดิบ"
             options={(ingredients ?? []).map((i) => ({ value: i._id, label: `${i.name} (${i.code})` }))}

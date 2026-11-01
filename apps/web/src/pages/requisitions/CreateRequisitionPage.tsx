@@ -13,6 +13,7 @@ import { getErrorMessage } from '@/api/errors'
 import { Button } from '@/components/Button'
 import { Input } from '@/components/Input'
 import { Select } from '@/components/Select'
+import { SearchableSelect } from '@/components/SearchableSelect'
 import { UnitSelect } from '@/components/UnitSelect'
 import { Card, CardBody } from '@/components/Card'
 import { useToast } from '@/components/Toast'
@@ -132,11 +133,11 @@ export function CreateRequisitionPage() {
                   <div key={field.id} className="flex flex-col gap-2 rounded-lg border border-border p-3">
                     <div className="flex items-end gap-2">
                       <div className="min-w-0 flex-1">
-                        <Select
+                        <SearchableSelect
                           label="วัตถุดิบ"
                           id={`items-${index}-ingredientId`}
                           placeholder="เลือกวัตถุดิบ"
-                          options={(ingredients ?? []).map((i) => ({ value: i._id, label: i.name }))}
+                          options={(ingredients ?? []).map((i) => ({ value: i._id, label: `${i.name} (${i.code})` }))}
                           error={errors.items?.[index]?.ingredientId?.message}
                           {...ingredientField}
                           onChange={(event) => {

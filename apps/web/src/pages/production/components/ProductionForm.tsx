@@ -11,6 +11,7 @@ import { Button } from '@/components/Button'
 import { Card, CardBody, CardHeader } from '@/components/Card'
 import { Input } from '@/components/Input'
 import { Select } from '@/components/Select'
+import { SearchableSelect } from '@/components/SearchableSelect'
 import { UnitSelect } from '@/components/UnitSelect'
 import { useToast } from '@/components/Toast'
 import { usePermission } from '@/hooks/usePermission'
@@ -252,7 +253,7 @@ export function ProductionForm({ zones, ingredients, units }: ProductionFormProp
                 error={errors.zoneId?.message}
                 {...register('zoneId')}
               />
-              <Select
+              <SearchableSelect
                 label="วัตถุดิบตั้งต้น"
                 placeholder="เลือกวัตถุดิบ"
                 options={ingredientOptions(undefined)}
@@ -336,7 +337,7 @@ export function ProductionForm({ zones, ingredients, units }: ProductionFormProp
                     ) : null}
                   </div>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    <Select
+                    <SearchableSelect
                       id={`outputs-${index}-ingredient`}
                       label="สินค้าที่ได้"
                       placeholder="เลือกสินค้า"

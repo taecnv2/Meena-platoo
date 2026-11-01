@@ -11,6 +11,7 @@ import { zonesApi } from '@/api/endpoints/zones'
 import { getErrorMessage } from '@/api/errors'
 import { Button } from '@/components/Button'
 import { Select } from '@/components/Select'
+import { SearchableSelect } from '@/components/SearchableSelect'
 import { Input } from '@/components/Input'
 import { Badge } from '@/components/Badge'
 import { Modal } from '@/components/Modal'
@@ -244,7 +245,7 @@ function CountItemRow({ index, control, register, errors, ingredients, ingredien
     <div className="flex flex-col gap-2 rounded-lg border border-border p-3">
       <div className="flex items-end gap-2">
         <div className="flex-1">
-          <Select
+          <SearchableSelect
             label="วัตถุดิบ"
             placeholder="เลือกวัตถุดิบ"
             options={ingredients.map((i) => ({ value: i._id, label: i.name }))}
