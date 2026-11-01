@@ -28,7 +28,7 @@ export async function readSpreadsheet(file: File): Promise<SheetCell[][]> {
   return rows.map((row) => row.map((cell) => (cell === undefined ? null : (cell as SheetCell))))
 }
 
-/** Minimal RFC 4180 CSV parser (quoted fields, escaped quotes, CRLF), tolerant of a UTF-8 BOM. */
+/** Minimal RFC 4180 CSV parser (quoted fields, escaped quotes, CRLF), tolerant of a UTF-8 BOM. Blank lines stay as empty rows. */
 export function parseCsv(text: string): string[][] {
   const rows: string[][] = []
   let row: string[] = []
@@ -67,5 +67,7 @@ export function parseCsv(text: string): string[][] {
     row.push(field)
     rows.push(row)
   }
-  return rows.filter((cells) => cells.some((cell) => cell.trim() !== ''))
+  // Blank lines are kept (as empty rows) so callers can report the sheet's real row numbers,
+  // matching read-excel-file, which also keeps empty rows; callers skip blank rows themselves.
+  return rows
 }

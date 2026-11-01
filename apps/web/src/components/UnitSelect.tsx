@@ -1,6 +1,6 @@
 import { forwardRef, type SelectHTMLAttributes } from 'react'
 import type { Ingredient, Unit } from '@/types/entities'
-import { formatNumber } from '@/utils/format'
+import { formatFactor } from '@/utils/format'
 import { getUnitOptions } from '@/utils/units'
 import { Select } from './Select'
 
@@ -37,7 +37,7 @@ export const UnitSelect = forwardRef<HTMLSelectElement, UnitSelectProps>(
                   value: option.unitId,
                   label: option.isBase
                     ? `${option.name} (หน่วยหลัก)`
-                    : `${option.name} (= ${formatNumber(option.factor)} ${base?.name ?? ''})`,
+                    : `${option.name} (= ${formatFactor(option.factor)} ${base?.name ?? ''})`,
                 }))
               : [{ value: '', label: '-' }]
           }
@@ -45,7 +45,7 @@ export const UnitSelect = forwardRef<HTMLSelectElement, UnitSelectProps>(
         />
         {showPreview ? (
           <span className="text-xs text-text-secondary">
-            = {formatNumber(quantity * selected.factor)} {base.name}
+            = {formatFactor(quantity * selected.factor)} {base.name}
           </span>
         ) : null}
       </div>
