@@ -39,6 +39,8 @@ export interface Zone {
   type: ZoneType
   description: string
   status: Status
+  /** Goods from suppliers may be received straight into this zone (WAREHOUSE always can). */
+  allowReceiving?: boolean
 }
 
 export interface Category {
@@ -72,6 +74,12 @@ export interface Supplier {
   status: Status
 }
 
+/** 1 `unitId` = `factor` x the ingredient's base unit (e.g. 1 ลัง = 12 ขวด). */
+export interface IngredientUnitConversion {
+  unitId: string
+  factor: number
+}
+
 export interface Ingredient {
   _id: string
   code: string
@@ -83,6 +91,10 @@ export interface Ingredient {
   defaultCost: number
   description: string
   status: Status
+  unitConversions?: IngredientUnitConversion[]
+  tags?: string[]
+  /** Third-party owner of consignment stock (e.g. "ไวน์พี่มี่"); null/undefined = restaurant-owned. */
+  consignmentOwner?: string | null
 }
 
 export interface ZoneStock {
@@ -102,8 +114,13 @@ export const MOVEMENT_TYPES = [
   'ADJUSTMENT_OUT',
   'WASTE',
   'AUTO_DEDUCTION',
+  'PRODUCTION_IN',
+  'PRODUCTION_OUT',
 ] as const
 export type MovementType = (typeof MOVEMENT_TYPES)[number]
+
+export const STOCK_OUT_REASONS = ['KITCHEN_USE', 'SALE', 'STAFF_MEAL', 'COMPLIMENTARY', 'OTHER'] as const
+export type StockOutReason = (typeof STOCK_OUT_REASONS)[number]
 
 export interface StockMovement {
   _id: string
@@ -119,6 +136,13 @@ export interface StockMovement {
   performedBy: string
   reason: string | null
   remark: string | null
+  /** What was keyed in before conversion to the base unit (e.g. 2 CASE). */
+  inputQuantity?: number | null
+  inputUnit?: string | null
+  /** Optional measured weight in kg. */
+  weight?: number | null
+  supplierId?: string | null
+  invoiceNo?: string | null
   createdAt: string
 }
 
@@ -244,11 +268,14 @@ export const PURCHASE_ORDER_STATUSES = [
 ] as const
 export type PurchaseOrderStatus = (typeof PURCHASE_ORDER_STATUSES)[number]
 
+/** Quantities and unitCost are in the line's own unit (`unit`, e.g. ลัง); conversionFactor maps it to the base unit. */
 export interface PurchaseOrderItem {
   ingredientId: string
   orderedQuantity: number
   receivedQuantity: number
   unit: string
+  unitId?: string | null
+  conversionFactor?: number
   unitCost: number
 }
 
@@ -315,6 +342,8 @@ export const AUDIT_ACTIONS = [
   'STOCK_ADJUSTED',
   'PURCHASE_RECEIVED',
   'WASTE_CREATED',
+  'INGREDIENTS_IMPORTED',
+  'PRODUCTION_CREATED',
 ] as const
 export type AuditAction = (typeof AUDIT_ACTIONS)[number]
 
@@ -523,4 +552,146 @@ export interface CostReport {
   byZone: CostReportZoneRow[]
   byMovementType: Array<{ movementType: MovementType; cost: number }>
   trend: Array<{ date: string; cost: number }>
+}
+
+export interface ProductionLine {
+  ingredientId: string
+  /** Base-unit quantity. */
+  quantity: number
+  unit: string
+  inputQuantity: number
+  inputUnit: string
+  portionWeight: number | null
+  /** Cost per base unit. */
+  unitCost: number
+  totalCost: number
+}
+
+export interface ProductionBatch {
+  _id: string
+  code: string
+  zoneId: string
+  input: ProductionLine
+  outputs: ProductionLine[]
+  wasteQuantity: number | null
+  yieldPercent: number | null
+  totalCost: number
+  performedBy: string
+  remark: string | null
+  createdAt: string
+}
+
+export interface LedgerDay {
+  in: number
+  out: number
+  closing: number
+}
+
+export interface LedgerRow {
+  ingredientId: string
+  code: string
+  name: string
+  categoryName: string
+  unit: string
+  opening: number
+  totalIn: number
+  totalOut: number
+  closing: number
+  /** Aligned with LedgerReport.days. */
+  days: LedgerDay[]
+}
+
+export interface LedgerReport {
+  zoneId: string | null
+  dateFrom: string
+  dateTo: string
+  days: string[]
+  rows: LedgerRow[]
+}
+
+export interface SupplierStatementLine {
+  date: string
+  ingredientCode: string
+  ingredientName: string
+  quantity: number
+  unit: string
+  unitCost: number
+  amount: number
+  invoiceNo: string | null
+  reference: string
+  zoneName: string
+}
+
+export interface SupplierStatement {
+  supplier: Pick<Supplier, '_id' | 'code' | 'name' | 'contactName' | 'phone' | 'address'>
+  dateFrom: string | null
+  dateTo: string | null
+  lines: SupplierStatementLine[]
+  totalAmount: number
+}
+
+/** opening + received - sold - otherOut = balance (all zones, transfers excluded). */
+export interface ConsignmentItemRow {
+  ingredientId: string
+  code: string
+  name: string
+  unit: string
+  opening: number
+  received: number
+  sold: number
+  soldValue: number
+  otherOut: number
+  balance: number
+  balanceValue: number
+}
+
+export interface ConsignmentOwnerReport {
+  owner: string
+  items: ConsignmentItemRow[]
+  totalSoldValue: number
+  totalBalanceValue: number
+}
+
+/** One spreadsheet row mapped to the import API's field names. */
+export interface ImportIngredientRow {
+  /** Original sheet row (header = 1) so messages point at the right line even after blank rows are dropped. */
+  rowNumber?: number
+  code?: string
+  name: string
+  category: string
+  baseUnit: string
+  packUnit?: string
+  packFactor?: number
+  minimumStock?: number
+  maximumStock?: number
+  defaultCost?: number
+  tags?: string
+  consignmentOwner?: string
+  description?: string
+  zone?: string
+  openingQuantity?: number
+}
+
+export type ImportRowAction = 'CREATE' | 'UPDATE' | 'ERROR'
+
+export interface ImportRowResult {
+  rowNumber: number
+  code: string | null
+  name: string
+  action: ImportRowAction
+  messages: string[]
+}
+
+export interface ImportResult {
+  dryRun: boolean
+  summary: {
+    total: number
+    create: number
+    update: number
+    error: number
+    openingBalances: number
+    newCategories: string[]
+    newUnits: string[]
+  }
+  rows: ImportRowResult[]
 }

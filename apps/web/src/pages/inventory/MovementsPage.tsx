@@ -2,17 +2,27 @@ import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { stockMovementsApi } from '@/api/endpoints/inventory'
 import { ingredientsApi } from '@/api/endpoints/ingredients'
+import { unitsApi } from '@/api/endpoints/units'
 import { zonesApi } from '@/api/endpoints/zones'
 import { Select } from '@/components/Select'
 import { Badge } from '@/components/Badge'
 import { DataTable, type DataTableColumn } from '@/components/DataTable'
 import { DateRangeFilter } from '@/components/DateRangeFilter'
+import { ExportButton } from '@/components/ExportButton'
 import { MOVEMENT_TYPE_LABEL } from '@/constants/labels'
 import { formatDateTime, formatQuantity } from '@/utils/format'
 import type { DateRangeValue } from '@/utils/dateRange'
+import type { ExcelColumn } from '@/utils/excel'
 import { MOVEMENT_TYPES, type MovementType, type StockMovement } from '@/types/entities'
+import {
+  buildUnitNameByCode,
+  formatInputQuantity,
+  formatMovementReason,
+  formatWeight,
+  todayStamp,
+} from './components/inventoryFormat'
 
-const INCOMING_TYPES: MovementType[] = ['STOCK_IN', 'TRANSFER_IN', 'ADJUSTMENT_IN']
+const INCOMING_TYPES: MovementType[] = ['STOCK_IN', 'TRANSFER_IN', 'ADJUSTMENT_IN', 'PRODUCTION_IN']
 
 export function MovementsPage() {
   const [ingredientFilter, setIngredientFilter] = useState('')
@@ -22,6 +32,7 @@ export function MovementsPage() {
 
   const { data: ingredients } = useQuery({ queryKey: ['ingredients'], queryFn: ingredientsApi.list })
   const { data: zones } = useQuery({ queryKey: ['zones'], queryFn: zonesApi.list })
+  const { data: units } = useQuery({ queryKey: ['units'], queryFn: unitsApi.list })
   const { data: movements, isLoading } = useQuery({
     queryKey: ['stock-movements', ingredientFilter, zoneFilter, typeFilter, dateRange.dateFrom, dateRange.dateTo],
     queryFn: () =>
@@ -34,31 +45,53 @@ export function MovementsPage() {
       }),
   })
 
-  const ingredientMap = useMemo(() => new Map((ingredients ?? []).map((i) => [i._id, i.name])), [ingredients])
+  const ingredientMap = useMemo(() => new Map((ingredients ?? []).map((i) => [i._id, i])), [ingredients])
   const zoneMap = useMemo(() => new Map((zones ?? []).map((z) => [z._id, z.name])), [zones])
+  const unitNameByCode = useMemo(() => buildUnitNameByCode(units), [units])
+  const unitName = (code: string) => unitNameByCode.get(code) ?? code
 
   const columns: Array<DataTableColumn<StockMovement>> = [
     { key: 'date', header: 'วันที่', render: (row) => formatDateTime(row.createdAt) },
-    { key: 'ingredient', header: 'วัตถุดิบ', render: (row) => ingredientMap.get(row.ingredientId) ?? '-' },
+    { key: 'ingredient', header: 'วัตถุดิบ', render: (row) => ingredientMap.get(row.ingredientId)?.name ?? '-' },
     { key: 'zone', header: 'Zone', render: (row) => zoneMap.get(row.zoneId) ?? '-' },
     {
       key: 'type',
       header: 'ประเภท',
       render: (row) => (
         <Badge color={INCOMING_TYPES.includes(row.movementType) ? 'success' : row.movementType === 'WASTE' ? 'danger' : 'gray'}>
-          {MOVEMENT_TYPE_LABEL[row.movementType]}
+          {MOVEMENT_TYPE_LABEL[row.movementType] ?? row.movementType}
         </Badge>
       ),
     },
-    { key: 'quantity', header: 'จำนวน', render: (row) => formatQuantity(row.quantity, row.unit) },
-    { key: 'reason', header: 'เหตุผล/หมายเหตุ', render: (row) => row.reason ?? row.remark ?? '-' },
+    { key: 'quantity', header: 'จำนวน', render: (row) => formatQuantity(row.quantity, unitName(row.unit)) },
+    { key: 'input', header: 'บันทึกเป็น', render: (row) => formatInputQuantity(row, unitNameByCode) ?? '-' },
+    { key: 'reason', header: 'เหตุผล', render: (row) => formatMovementReason(row.reason) ?? '-' },
+    { key: 'weight', header: 'น้ำหนัก (กก.)', render: (row) => formatWeight(row.weight) },
+    { key: 'remark', header: 'หมายเหตุ', render: (row) => row.remark || '-' },
+  ]
+
+  const exportColumns: Array<ExcelColumn<StockMovement>> = [
+    { header: 'วันที่', value: (row) => formatDateTime(row.createdAt), width: 20 },
+    { header: 'รหัส', value: (row) => ingredientMap.get(row.ingredientId)?.code ?? '', width: 14 },
+    { header: 'วัตถุดิบ', value: (row) => ingredientMap.get(row.ingredientId)?.name ?? '', width: 28 },
+    { header: 'Zone', value: (row) => zoneMap.get(row.zoneId) ?? '', width: 18 },
+    { header: 'ประเภท', value: (row) => MOVEMENT_TYPE_LABEL[row.movementType] ?? row.movementType, width: 16 },
+    { header: 'จำนวน', value: (row) => row.quantity, width: 12 },
+    { header: 'หน่วย', value: (row) => unitName(row.unit), width: 10 },
+    { header: 'บันทึกเป็น', value: (row) => formatInputQuantity(row, unitNameByCode) ?? '', width: 16 },
+    { header: 'เหตุผล', value: (row) => formatMovementReason(row.reason) ?? '', width: 22 },
+    { header: 'น้ำหนัก (กก.)', value: (row) => row.weight ?? null, width: 14 },
+    { header: 'หมายเหตุ', value: (row) => row.remark ?? '', width: 28 },
   ]
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-xl font-semibold text-text-primary">ประวัติการเคลื่อนไหวสต๊อก</h1>
-        <p className="text-sm text-text-secondary">ประวัติการรับ-จ่าย-โอน-ปรับปรุงสต๊อกทั้งหมด</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-text-primary">ประวัติการเคลื่อนไหวสต๊อก</h1>
+          <p className="text-sm text-text-secondary">ประวัติการรับ-จ่าย-โอน-ปรับปรุง-แปรรูปสต๊อกทั้งหมด</p>
+        </div>
+        <ExportButton fileName={`ประวัติสต๊อก-${todayStamp()}`} columns={exportColumns} rows={movements ?? []} />
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">

@@ -29,6 +29,11 @@ import {
   ClipboardList,
   GitCompareArrows,
   Wallet,
+  ChefHat,
+  FileSpreadsheet,
+  CalendarDays,
+  Receipt,
+  Wine,
 } from 'lucide-react'
 import { PERMISSIONS, type PermissionCode } from './permissions'
 
@@ -61,6 +66,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: 'รับสินค้า', path: '/inventory/stock-in', permission: PERMISSIONS.INVENTORY_CREATE, icon: PackagePlus },
       { label: 'จ่ายสินค้า', path: '/inventory/stock-out', permission: PERMISSIONS.INVENTORY_CREATE, icon: PackageMinus },
       { label: 'โอนสินค้า', path: '/inventory/transfers', permission: PERMISSIONS.TRANSFER_READ, icon: ArrowLeftRight },
+      { label: 'แปรรูป / แบ่ง Portion', path: '/production', permission: PERMISSIONS.PRODUCTION_READ, icon: ChefHat },
       { label: 'ปรับปรุงสต๊อก', path: '/inventory/adjust', permission: PERMISSIONS.INVENTORY_ADJUST, icon: SlidersHorizontal },
       { label: 'ตรวจนับสต๊อก', path: '/stock-counts', permission: PERMISSIONS.STOCK_COUNT_READ, icon: ClipboardCheck },
       { label: 'ประวัติการเคลื่อนไหว', path: '/inventory/movements', permission: PERMISSIONS.INVENTORY_READ, icon: History },
@@ -91,10 +97,13 @@ export const NAV_GROUPS: NavGroup[] = [
     label: 'รายงาน',
     icon: BarChart3,
     items: [
+      { label: 'สต๊อกรายวัน', path: '/reports/ledger', permission: PERMISSIONS.REPORTS_READ, icon: CalendarDays },
       { label: 'รายงานสต๊อก', path: '/reports/inventory', permission: PERMISSIONS.REPORTS_READ, icon: Wheat },
       { label: 'รายงานตาม Zone', path: '/reports/zone', permission: PERMISSIONS.REPORTS_READ, icon: MapPinned },
       { label: 'รายงานใบเบิกสินค้า', path: '/reports/requisition', permission: PERMISSIONS.REPORTS_READ, icon: ClipboardList },
       { label: 'รายงานจัดซื้อ', path: '/reports/purchase', permission: PERMISSIONS.REPORTS_READ, icon: ShoppingCart },
+      { label: 'ใบวางบิล Supplier', path: '/reports/supplier-statement', permission: PERMISSIONS.REPORTS_READ, icon: Receipt },
+      { label: 'สินค้าฝากขาย', path: '/reports/consignment', permission: PERMISSIONS.REPORTS_READ, icon: Wine },
       { label: 'รายงานของเสีย', path: '/reports/waste', permission: PERMISSIONS.REPORTS_READ, icon: Trash2 },
       { label: 'รายงานต้นทุน', path: '/reports/cost', permission: PERMISSIONS.REPORTS_READ, icon: Wallet },
       { label: 'รายงานเปรียบเทียบ', path: '/reports/comparison', permission: PERMISSIONS.REPORTS_READ, icon: GitCompareArrows },
@@ -105,6 +114,7 @@ export const NAV_GROUPS: NavGroup[] = [
     icon: Database,
     items: [
       { label: 'วัตถุดิบ', path: '/master-data/ingredients', permission: PERMISSIONS.INGREDIENTS_READ, icon: Wheat },
+      { label: 'นำเข้าจาก Excel', path: '/master-data/import', permission: PERMISSIONS.INGREDIENTS_IMPORT, icon: FileSpreadsheet },
       { label: 'หมวดหมู่', path: '/master-data/categories', permission: PERMISSIONS.CATEGORIES_READ, icon: Tags },
       { label: 'หน่วยนับ', path: '/master-data/units', permission: PERMISSIONS.UNITS_READ, icon: Ruler },
       { label: 'Supplier', path: '/master-data/suppliers', permission: PERMISSIONS.SUPPLIERS_READ, icon: Truck },

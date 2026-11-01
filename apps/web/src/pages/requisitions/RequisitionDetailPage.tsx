@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router-dom'
 import { requisitionsApi } from '@/api/endpoints/requisitions'
 import { ingredientsApi } from '@/api/endpoints/ingredients'
+import { unitsApi } from '@/api/endpoints/units'
 import { zonesApi } from '@/api/endpoints/zones'
 import { getErrorMessage } from '@/api/errors'
 import { Button } from '@/components/Button'
@@ -17,6 +18,8 @@ import { usePermission } from '@/hooks/usePermission'
 import { PERMISSIONS } from '@/constants/permissions'
 import { REQUISITION_STATUS_COLOR, REQUISITION_STATUS_LABEL } from '@/constants/labels'
 import { formatDateTime, formatQuantity } from '@/utils/format'
+import { formatPackBreakdown } from '@/utils/units'
+import type { RequisitionItem } from '@/types/entities'
 
 export function RequisitionDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -43,9 +46,22 @@ export function RequisitionDetailPage() {
   })
   const { data: ingredients } = useQuery({ queryKey: ['ingredients'], queryFn: ingredientsApi.list })
   const { data: zones } = useQuery({ queryKey: ['zones'], queryFn: zonesApi.list })
+  const { data: units } = useQuery({ queryKey: ['units'], queryFn: unitsApi.list })
 
-  const ingredientMap = useMemo(() => new Map((ingredients ?? []).map((i) => [i._id, i.name])), [ingredients])
+  const ingredientById = useMemo(() => new Map((ingredients ?? []).map((i) => [i._id, i])), [ingredients])
   const zoneMap = useMemo(() => new Map((zones ?? []).map((z) => [z._id, z.name])), [zones])
+  const unitByCode = useMemo(() => new Map((units ?? []).map((u) => [u.code, u.name])), [units])
+
+  /** Base-unit quantity plus a "2 ลัง 3 ขวด" breakdown when the ingredient has a pack unit. */
+  const renderQuantity = (quantity: number, item: RequisitionItem) => {
+    const breakdown = formatPackBreakdown(quantity, ingredientById.get(item.ingredientId), units)
+    return (
+      <div className="flex flex-col">
+        <span>{formatQuantity(quantity, unitByCode.get(item.unit) ?? item.unit)}</span>
+        {breakdown ? <span className="text-xs text-text-secondary">({breakdown})</span> : null}
+      </div>
+    )
+  }
 
   const invalidate = () =>
     Promise.all([
@@ -183,10 +199,10 @@ export function RequisitionDetailPage() {
             <tbody className="divide-y divide-border">
               {requisition.items.map((item) => (
                 <tr key={item.ingredientId}>
-                  <td className="py-2">{ingredientMap.get(item.ingredientId) ?? '-'}</td>
-                  <td className="py-2">{formatQuantity(item.requestedQuantity, item.unit)}</td>
-                  <td className="py-2">{formatQuantity(item.approvedQuantity, item.unit)}</td>
-                  <td className="py-2">{formatQuantity(item.fulfilledQuantity, item.unit)}</td>
+                  <td className="py-2">{ingredientById.get(item.ingredientId)?.name ?? '-'}</td>
+                  <td className="py-2">{renderQuantity(item.requestedQuantity, item)}</td>
+                  <td className="py-2">{renderQuantity(item.approvedQuantity, item)}</td>
+                  <td className="py-2">{renderQuantity(item.fulfilledQuantity, item)}</td>
                 </tr>
               ))}
             </tbody>
@@ -227,7 +243,7 @@ export function RequisitionDetailPage() {
       <ConfirmDialog
         isOpen={isFulfilling}
         title="จ่ายสินค้าตามใบเบิก"
-        message={`จ่ายสินค้าจากคลังสินค้าให้ครบตามจำนวนที่อนุมัติซึ่งยังไม่ได้จ่ายสำหรับใบเบิก ${requisition.code}?`}
+        message={`จ่ายสินค้าจาก ${zoneMap.get(requisition.fromZoneId) ?? 'คลังสินค้า'} ให้ครบตามจำนวนที่อนุมัติซึ่งยังไม่ได้จ่ายสำหรับใบเบิก ${requisition.code}?`}
         confirmLabel="ยืนยันการจ่ายสินค้า"
         isLoading={isMutating}
         onConfirm={() => void handleFulfill()}

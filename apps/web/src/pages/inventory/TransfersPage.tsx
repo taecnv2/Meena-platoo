@@ -6,11 +6,13 @@ import { z } from 'zod'
 import { Plus } from 'lucide-react'
 import { transfersApi } from '@/api/endpoints/transfers'
 import { ingredientsApi } from '@/api/endpoints/ingredients'
+import { unitsApi } from '@/api/endpoints/units'
 import { zonesApi } from '@/api/endpoints/zones'
 import { getErrorMessage } from '@/api/errors'
 import { Button } from '@/components/Button'
 import { Select } from '@/components/Select'
 import { Input } from '@/components/Input'
+import { UnitSelect } from '@/components/UnitSelect'
 import { Badge } from '@/components/Badge'
 import { Modal } from '@/components/Modal'
 import { DataTable, type DataTableColumn } from '@/components/DataTable'
@@ -23,12 +25,14 @@ import { TRANSFER_STATUS_LABEL } from '@/constants/labels'
 import { formatDateTime, formatQuantity } from '@/utils/format'
 import type { DateRangeValue } from '@/utils/dateRange'
 import type { Transfer } from '@/types/entities'
+import { buildUnitNameByCode, useResetUnitOnIngredientChange } from './components/inventoryFormat'
 
 const formSchema = z.object({
   fromZoneId: z.string().min(1, 'กรุณาเลือก Zone ต้นทาง'),
   toZoneId: z.string().min(1, 'กรุณาเลือก Zone ปลายทาง'),
   ingredientId: z.string().min(1, 'กรุณาเลือกวัตถุดิบ'),
   quantity: z.coerce.number().positive('กรุณากรอกจำนวนที่มากกว่า 0'),
+  unitId: z.string().optional(),
 })
 type FormValues = z.infer<typeof formSchema>
 
@@ -50,20 +54,28 @@ export function TransfersPage() {
   })
   const { data: zones } = useQuery({ queryKey: ['zones'], queryFn: zonesApi.list })
   const { data: ingredients } = useQuery({ queryKey: ['ingredients'], queryFn: ingredientsApi.list })
+  const { data: units } = useQuery({ queryKey: ['units'], queryFn: unitsApi.list })
 
   const zoneMap = useMemo(() => new Map((zones ?? []).map((z) => [z._id, z.name])), [zones])
-  const ingredientMap = useMemo(() => new Map((ingredients ?? []).map((i) => [i._id, i.name])), [ingredients])
+  const ingredientMap = useMemo(() => new Map((ingredients ?? []).map((i) => [i._id, i])), [ingredients])
+  const unitNameByCode = useMemo(() => buildUnitNameByCode(units), [units])
   const accessibleZones = (zones ?? []).filter((z) => !accessibleZoneIds || accessibleZoneIds.includes(z._id))
 
   const {
     register,
     handleSubmit,
     reset,
+    setValue,
+    watch,
     formState: { errors, isSubmitting },
-  } = useForm<FormValues>({ resolver: zodResolver(formSchema) })
+  } = useForm<FormValues>({ resolver: zodResolver(formSchema), defaultValues: { unitId: '' } })
+
+  const selectedIngredient = ingredientMap.get(watch('ingredientId') ?? '')
+  const quantity = Number(watch('quantity')) || 0
+  useResetUnitOnIngredientChange(selectedIngredient, units, (unitId) => setValue('unitId', unitId))
 
   const openCreate = () => {
-    reset({ fromZoneId: '', toZoneId: '', ingredientId: '', quantity: 0 })
+    reset({ fromZoneId: '', toZoneId: '', ingredientId: '', quantity: 0, unitId: '' })
     setIsCreating(true)
   }
 
@@ -72,12 +84,13 @@ export function TransfersPage() {
       await transfersApi.create({
         fromZoneId: values.fromZoneId,
         toZoneId: values.toZoneId,
-        items: [{ ingredientId: values.ingredientId, quantity: values.quantity }],
+        items: [{ ingredientId: values.ingredientId, quantity: values.quantity, unitId: values.unitId || undefined }],
       })
       toast.show('success', 'โอนสินค้าสำเร็จ')
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['transfers'] }),
         queryClient.invalidateQueries({ queryKey: ['inventory', 'balances'] }),
+        queryClient.invalidateQueries({ queryKey: ['stock-movements'] }),
       ])
       setIsCreating(false)
     } catch (error) {
@@ -92,7 +105,13 @@ export function TransfersPage() {
     {
       key: 'items',
       header: 'รายการ',
-      render: (row) => row.items.map((item) => `${ingredientMap.get(item.ingredientId) ?? '-'} (${formatQuantity(item.quantity, item.unit)})`).join(', '),
+      render: (row) =>
+        row.items
+          .map(
+            (item) =>
+              `${ingredientMap.get(item.ingredientId)?.name ?? '-'} (${formatQuantity(item.quantity, unitNameByCode.get(item.unit) ?? item.unit)})`,
+          )
+          .join(', '),
     },
     {
       key: 'status',
@@ -146,7 +165,16 @@ export function TransfersPage() {
             error={errors.ingredientId?.message}
             {...register('ingredientId')}
           />
-          <Input label="จำนวน" type="number" step="0.01" error={errors.quantity?.message} {...register('quantity')} />
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="จำนวน" type="number" step="0.01" inputMode="decimal" error={errors.quantity?.message} {...register('quantity')} />
+            <UnitSelect
+              ingredient={selectedIngredient}
+              units={units}
+              quantity={quantity}
+              value={watch('unitId')}
+              {...register('unitId')}
+            />
+          </div>
           <Button type="submit" isLoading={isSubmitting}>
             บันทึกการโอน
           </Button>

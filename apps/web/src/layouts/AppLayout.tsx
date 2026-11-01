@@ -93,13 +93,13 @@ export function AppLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="flex h-screen bg-background">
-      <aside className="hidden w-64 shrink-0 border-r border-border bg-white lg:block">
+    <div className="flex h-screen bg-background print:block print:h-auto print:bg-white">
+      <aside className="hidden w-64 shrink-0 border-r border-border bg-white lg:block print:hidden">
         <SidebarContent />
       </aside>
 
       {isMobileNavOpen ? (
-        <div className="fixed inset-0 z-40 flex lg:hidden">
+        <div className="fixed inset-0 z-40 flex lg:hidden print:hidden">
           <div className="absolute inset-0 bg-black/40" onClick={() => setIsMobileNavOpen(false)} />
           <div className="relative flex w-72 max-w-[85vw] flex-col bg-white shadow-xl">
             <button
@@ -116,7 +116,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
       ) : null}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-16 shrink-0 items-center justify-between border-b border-border bg-white px-4 sm:px-6">
+        <header className="flex h-16 shrink-0 items-center justify-between border-b border-border bg-white px-4 sm:px-6 print:hidden">
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -146,7 +146,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
             </button>
           </div>
         </header>
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6">{children}</main>
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 print:overflow-visible print:p-0">{children}</main>
       </div>
     </div>
   )

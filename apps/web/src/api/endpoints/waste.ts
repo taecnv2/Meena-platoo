@@ -5,6 +5,7 @@ export interface CreateWastePayload {
   zoneId: string
   ingredientId: string
   quantity: number
+  unitId?: string
   reason: WasteReason
   remark?: string
 }

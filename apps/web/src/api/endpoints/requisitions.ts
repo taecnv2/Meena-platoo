@@ -4,7 +4,8 @@ import type { Requisition, RequisitionStatus } from '@/types/entities'
 export interface CreateRequisitionPayload {
   fromZoneId: string
   toZoneId: string
-  items: Array<{ ingredientId: string; requestedQuantity: number }>
+  /** requestedQuantity is in `unitId` (default base unit); stored converted to the base unit. */
+  items: Array<{ ingredientId: string; requestedQuantity: number; unitId?: string }>
 }
 
 export interface ApproveRequisitionPayload {

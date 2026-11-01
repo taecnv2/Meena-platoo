@@ -1,5 +1,5 @@
 import { createCrudApi } from '../createCrudApi'
-import type { Ingredient, Status } from '@/types/entities'
+import type { Ingredient, IngredientUnitConversion, Status } from '@/types/entities'
 
 export interface CreateIngredientPayload {
   code: string
@@ -10,6 +10,9 @@ export interface CreateIngredientPayload {
   maximumStock?: number
   defaultCost?: number
   description?: string
+  unitConversions?: IngredientUnitConversion[]
+  tags?: string[]
+  consignmentOwner?: string | null
   status?: Status
 }
 

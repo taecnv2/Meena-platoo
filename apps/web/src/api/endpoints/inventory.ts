@@ -1,11 +1,16 @@
 import { axiosClient } from '../axiosClient'
-import type { StockMovement, ZoneStock } from '@/types/entities'
+import type { StockMovement, StockOutReason, ZoneStock } from '@/types/entities'
 
+/** `quantity`/`unitCost` are in `unitId` (default: the ingredient's base unit); the API converts to base. */
 export interface StockInPayload {
   ingredientId: string
   zoneId: string
   quantity: number
+  unitId?: string
   unitCost?: number
+  weight?: number
+  supplierId?: string
+  invoiceNo?: string
   remark?: string
 }
 
@@ -13,6 +18,9 @@ export interface StockOutPayload {
   ingredientId: string
   zoneId: string
   quantity: number
+  unitId?: string
+  reason?: StockOutReason
+  weight?: number
   remark?: string
 }
 
@@ -20,6 +28,7 @@ export interface AdjustmentPayload {
   ingredientId: string
   zoneId: string
   quantityDelta: number
+  unitId?: string
   reason: string
   remark?: string
 }

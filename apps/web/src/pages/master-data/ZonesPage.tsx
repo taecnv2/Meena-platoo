@@ -16,6 +16,7 @@ import { useToast } from '@/components/Toast'
 import { usePermission } from '@/hooks/usePermission'
 import { PERMISSIONS } from '@/constants/permissions'
 import { ZONE_TYPE_LABEL } from '@/constants/labels'
+import { WAREHOUSE_ZONE_CODE } from '@/constants/zones'
 import { ZONE_TYPES, type Zone, type ZoneType } from '@/types/entities'
 
 const formSchema = z.object({
@@ -23,10 +24,14 @@ const formSchema = z.object({
   code: z.string().min(1, 'กรุณากรอกรหัส'),
   type: z.enum(ZONE_TYPES),
   description: z.string().optional(),
+  allowReceiving: z.boolean().optional(),
 })
 type FormValues = z.infer<typeof formSchema>
 
 const TYPE_OPTIONS = ZONE_TYPES.map((type) => ({ value: type, label: ZONE_TYPE_LABEL[type] }))
+
+/** The central WAREHOUSE always accepts supplier deliveries, regardless of its flag. */
+const canReceive = (zone: Zone) => zone.code === WAREHOUSE_ZONE_CODE || Boolean(zone.allowReceiving)
 
 export function ZonesPage() {
   const queryClient = useQueryClient()
@@ -43,16 +48,18 @@ export function ZonesPage() {
     handleSubmit,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<FormValues>({ resolver: zodResolver(formSchema), defaultValues: { type: 'OTHER' as ZoneType } })
+  } = useForm<FormValues>({ resolver: zodResolver(formSchema), defaultValues: { type: 'OTHER' as ZoneType, allowReceiving: false } })
 
   const openCreate = () => {
-    reset({ name: '', code: '', type: 'OTHER', description: '' })
+    reset({ name: '', code: '', type: 'OTHER', description: '', allowReceiving: false })
     setEditing('new')
   }
   const openEdit = (zone: Zone) => {
-    reset({ name: zone.name, code: zone.code, type: zone.type, description: zone.description })
+    reset({ name: zone.name, code: zone.code, type: zone.type, description: zone.description, allowReceiving: canReceive(zone) })
     setEditing(zone)
   }
+
+  const isWarehouse = editing !== null && editing !== 'new' && editing.code === WAREHOUSE_ZONE_CODE
 
   const onSubmit = async (values: FormValues) => {
     try {
@@ -60,7 +67,13 @@ export function ZonesPage() {
         await zonesApi.create(values)
         toast.show('success', 'สร้าง Zone สำเร็จ')
       } else if (editing) {
-        await zonesApi.update(editing._id, { name: values.name, type: values.type, description: values.description })
+        await zonesApi.update(editing._id, {
+          name: values.name,
+          type: values.type,
+          description: values.description,
+          // The WAREHOUSE flag is fixed (always receives), so leave it untouched.
+          ...(isWarehouse ? {} : { allowReceiving: values.allowReceiving ?? false }),
+        })
         toast.show('success', 'บันทึกการแก้ไขสำเร็จ')
       }
       await queryClient.invalidateQueries({ queryKey: ['zones'] })
@@ -84,6 +97,11 @@ export function ZonesPage() {
     { key: 'code', header: 'รหัส', render: (row) => row.code },
     { key: 'name', header: 'ชื่อ Zone', render: (row) => row.name },
     { key: 'type', header: 'ประเภท', render: (row) => ZONE_TYPE_LABEL[row.type] },
+    {
+      key: 'receiving',
+      header: 'รับสินค้าจาก Supplier',
+      render: (row) => (canReceive(row) ? <Badge color="info">รับสินค้าได้</Badge> : '-'),
+    },
     { key: 'status', header: 'สถานะ', render: (row) => <Badge color={row.status === 'ACTIVE' ? 'success' : 'gray'}>{row.status === 'ACTIVE' ? 'ใช้งาน' : 'ปิดใช้งาน'}</Badge> },
     {
       key: 'actions',
@@ -127,6 +145,22 @@ export function ZonesPage() {
           <Input label="รหัส" disabled={editing !== 'new'} error={errors.code?.message} {...register('code')} />
           <Select label="ประเภท" options={TYPE_OPTIONS} error={errors.type?.message} {...register('type')} />
           <Input label="คำอธิบาย" {...register('description')} />
+          <div className="flex flex-col gap-1">
+            <label className="flex items-start gap-2 text-sm text-text-primary">
+              <input
+                type="checkbox"
+                className="mt-0.5 size-4 accent-primary"
+                disabled={isWarehouse}
+                {...register('allowReceiving')}
+              />
+              รับสินค้าจาก Supplier เข้า Zone นี้ได้โดยตรง
+            </label>
+            <span className="pl-6 text-sm text-text-secondary">
+              {isWarehouse
+                ? 'คลังสินค้าหลักรับสินค้าได้เสมอ'
+                : 'เช่น ห้องเย็น ที่รับของจาก Supplier เข้าโดยตรง และให้ Zone อื่นเบิกจากที่นี่ได้'}
+            </span>
+          </div>
           <Button type="submit" isLoading={isSubmitting}>
             บันทึก
           </Button>
