@@ -1,3 +1,4 @@
+import { axiosClient } from '../axiosClient'
 import { createCrudApi } from '../createCrudApi'
 import type { Status, Supplier } from '@/types/entities'
 
@@ -13,4 +14,8 @@ export interface CreateSupplierPayload {
 
 export type UpdateSupplierPayload = Partial<Omit<CreateSupplierPayload, 'code'>>
 
-export const suppliersApi = createCrudApi<Supplier, CreateSupplierPayload, UpdateSupplierPayload>('suppliers')
+export const suppliersApi = {
+  ...createCrudApi<Supplier, CreateSupplierPayload, UpdateSupplierPayload>('suppliers'),
+  /** Hard delete; the API refuses (409) when a purchase order or stock-in references the supplier. */
+  remove: (id: string) => axiosClient.delete<Supplier>(`/suppliers/${id}`).then((response) => response.data),
+}

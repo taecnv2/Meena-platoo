@@ -3,12 +3,14 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Plus, Pencil } from 'lucide-react'
+import { Plus, Pencil, Trash2 } from 'lucide-react'
 import { suppliersApi } from '@/api/endpoints/suppliers'
 import { getErrorMessage } from '@/api/errors'
 import { Button } from '@/components/Button'
 import { Input } from '@/components/Input'
+import { Select } from '@/components/Select'
 import { Badge } from '@/components/Badge'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { Modal } from '@/components/Modal'
 import { DataTable, type DataTableColumn } from '@/components/DataTable'
 import { ExportButton } from '@/components/ExportButton'
@@ -24,6 +26,7 @@ const formSchema = z.object({
   phone: z.string().optional(),
   email: z.string().email('อีเมลไม่ถูกต้อง').optional().or(z.literal('')),
   address: z.string().optional(),
+  status: z.enum(['ACTIVE', 'INACTIVE']),
 })
 type FormValues = z.infer<typeof formSchema>
 
@@ -33,7 +36,10 @@ export function SuppliersPage() {
   const canCreate = usePermission(PERMISSIONS.SUPPLIERS_CREATE)
   const canUpdate = usePermission(PERMISSIONS.SUPPLIERS_UPDATE)
   const canExport = usePermission(PERMISSIONS.SUPPLIERS_EXPORT)
+  const canDelete = usePermission(PERMISSIONS.SUPPLIERS_DELETE)
   const [editing, setEditing] = useState<Supplier | 'new' | null>(null)
+  const [deleting, setDeleting] = useState<Supplier | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const { data, isLoading } = useQuery({ queryKey: ['suppliers'], queryFn: suppliersApi.list })
 
@@ -45,7 +51,7 @@ export function SuppliersPage() {
   } = useForm<FormValues>({ resolver: zodResolver(formSchema) })
 
   const openCreate = () => {
-    reset({ code: '', name: '', contactName: '', phone: '', email: '', address: '' })
+    reset({ code: '', name: '', contactName: '', phone: '', email: '', address: '', status: 'ACTIVE' })
     setEditing('new')
   }
   const openEdit = (supplier: Supplier) => {
@@ -56,6 +62,7 @@ export function SuppliersPage() {
       phone: supplier.phone,
       email: supplier.email,
       address: supplier.address,
+      status: supplier.status,
     })
     setEditing(supplier)
   }
@@ -78,21 +85,47 @@ export function SuppliersPage() {
     }
   }
 
+  const handleDelete = async () => {
+    if (!deleting) {
+      return
+    }
+    setIsDeleting(true)
+    try {
+      await suppliersApi.remove(deleting._id)
+      toast.show('success', `ลบ Supplier ${deleting.name} แล้ว`)
+      await queryClient.invalidateQueries({ queryKey: ['suppliers'] })
+      setDeleting(null)
+    } catch (error) {
+      toast.show('error', getErrorMessage(error))
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   const columns: Array<DataTableColumn<Supplier>> = [
     { key: 'code', header: 'รหัส', render: (row) => row.code },
     { key: 'name', header: 'ชื่อ Supplier', render: (row) => row.name },
     { key: 'contactName', header: 'ผู้ติดต่อ', render: (row) => row.contactName || '-' },
     { key: 'phone', header: 'เบอร์โทร', render: (row) => row.phone || '-' },
     { key: 'status', header: 'สถานะ', render: (row) => <Badge color={row.status === 'ACTIVE' ? 'success' : 'gray'}>{row.status === 'ACTIVE' ? 'ใช้งาน' : 'ปิดใช้งาน'}</Badge> },
-    ...(canUpdate
+    ...(canUpdate || canDelete
       ? [
           {
             key: 'actions',
             header: '',
             render: (row: Supplier) => (
-              <button type="button" className="text-primary hover:underline" onClick={() => openEdit(row)}>
-                <Pencil className="inline size-4" /> แก้ไข
-              </button>
+              <div className="flex items-center gap-4">
+                {canUpdate ? (
+                  <button type="button" className="text-primary hover:underline" onClick={() => openEdit(row)}>
+                    <Pencil className="inline size-4" /> แก้ไข
+                  </button>
+                ) : null}
+                {canDelete ? (
+                  <button type="button" className="text-danger hover:underline" onClick={() => setDeleting(row)}>
+                    <Trash2 className="inline size-4" /> ลบ
+                  </button>
+                ) : null}
+              </div>
             ),
           } satisfies DataTableColumn<Supplier>,
         ]
@@ -126,11 +159,32 @@ export function SuppliersPage() {
           <Input label="เบอร์โทร" {...register('phone')} />
           <Input label="อีเมล" error={errors.email?.message} {...register('email')} />
           <Input label="ที่อยู่" {...register('address')} />
+          {editing !== 'new' ? (
+            <Select
+              label="สถานะ"
+              options={[
+                { value: 'ACTIVE', label: 'ใช้งาน' },
+                { value: 'INACTIVE', label: 'ปิดใช้งาน' },
+              ]}
+              {...register('status')}
+            />
+          ) : null}
           <Button type="submit" isLoading={isSubmitting}>
             บันทึก
           </Button>
         </form>
       </Modal>
+
+      <ConfirmDialog
+        isOpen={deleting !== null}
+        title="ลบ Supplier"
+        message={`ลบ ${deleting?.code ?? ''} ${deleting?.name ?? ''} ออกจากระบบถาวร? ลบได้เฉพาะ Supplier ที่ยังไม่เคยมีใบสั่งซื้อหรือการรับสินค้า ถ้าเคยใช้แล้วให้เปลี่ยนสถานะเป็นปิดใช้งานแทน`}
+        confirmLabel="ลบ"
+        danger
+        isLoading={isDeleting}
+        onConfirm={() => void handleDelete()}
+        onCancel={() => setDeleting(null)}
+      />
     </div>
   )
 }

@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Schema as MongooseSchema, Types } from 'mongoose';
+import { LOG_RETENTION_SECONDS } from '../../common/constants/retention';
 
 export type NotificationDocument = HydratedDocument<Notification>;
 
@@ -49,3 +50,8 @@ export class Notification {
 export const NotificationSchema = SchemaFactory.createForClass(Notification);
 NotificationSchema.index({ userId: 1, createdAt: -1 });
 NotificationSchema.index({ userId: 1, isRead: 1 });
+/** TTL: MongoDB deletes a notification LOG_RETENTION_DAYS after it was created. */
+NotificationSchema.index(
+  { createdAt: 1 },
+  { expireAfterSeconds: LOG_RETENTION_SECONDS },
+);

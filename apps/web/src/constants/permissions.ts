@@ -17,6 +17,7 @@ export const PERMISSIONS = {
   SUPPLIERS_READ: 'suppliers.read',
   SUPPLIERS_CREATE: 'suppliers.create',
   SUPPLIERS_UPDATE: 'suppliers.update',
+  SUPPLIERS_DELETE: 'suppliers.delete',
 
   INGREDIENTS_READ: 'ingredients.read',
   INGREDIENTS_CREATE: 'ingredients.create',

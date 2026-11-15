@@ -345,6 +345,7 @@ export const AUDIT_ACTIONS = [
   'INGREDIENTS_IMPORTED',
   'PRODUCTION_CREATED',
   'DATA_EXPORTED',
+  'SUPPLIER_DELETED',
 ] as const
 export type AuditAction = (typeof AUDIT_ACTIONS)[number]
 

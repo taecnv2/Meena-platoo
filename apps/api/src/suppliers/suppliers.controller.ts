@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -12,6 +13,7 @@ import { RequirePermission } from '../common/decorators/require-permission.decor
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { PERMISSION_CODES } from '../common/constants/permissions';
 import type { RequestUser } from '../common/types/authenticated-request';
+import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { ExportService, type ExportFormat } from '../export/export.service';
 import { CreateSupplierDto } from './dto/create-supplier.dto';
 import { UpdateSupplierDto } from './dto/update-supplier.dto';
@@ -24,6 +26,7 @@ export class SuppliersController {
   constructor(
     private readonly suppliersService: SuppliersService,
     private readonly exportService: ExportService,
+    private readonly auditLogsService: AuditLogsService,
   ) {}
 
   @RequirePermission(PERMISSION_CODES.SUPPLIERS_READ)
@@ -71,5 +74,22 @@ export class SuppliersController {
     @Body() dto: UpdateSupplierDto,
   ): Promise<Supplier> {
     return this.suppliersService.update(id, dto);
+  }
+
+  @RequirePermission(PERMISSION_CODES.SUPPLIERS_DELETE)
+  @Delete(':id')
+  async remove(
+    @Param('id') id: string,
+    @CurrentUser() actor: RequestUser,
+  ): Promise<Supplier> {
+    const supplier = await this.suppliersService.remove(id);
+    await this.auditLogsService.log({
+      userId: actor.id,
+      action: 'SUPPLIER_DELETED',
+      entity: 'Supplier',
+      entityId: id,
+      before: supplier,
+    });
+    return supplier;
   }
 }
