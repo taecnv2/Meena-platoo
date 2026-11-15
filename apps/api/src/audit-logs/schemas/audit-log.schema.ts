@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Schema as MongooseSchema, Types } from 'mongoose';
+import { LOG_RETENTION_SECONDS } from '../../common/constants/retention';
 
 export type AuditLogDocument = HydratedDocument<AuditLog>;
 
@@ -20,12 +21,14 @@ export const AUDIT_ACTIONS = [
   'INGREDIENTS_IMPORTED',
   'PRODUCTION_CREATED',
   'DATA_EXPORTED',
+  'SUPPLIER_DELETED',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
 /**
  * Append-only audit trail (plan.md §35). Written by AuditLogService.log(), called from
- * controllers/services after a tracked mutation succeeds. Never updated or deleted.
+ * controllers/services after a tracked mutation succeeds. Never updated; MongoDB's TTL index
+ * deletes each entry LOG_RETENTION_DAYS (6 months) after it was created.
  */
 @Schema({
   timestamps: { createdAt: true, updatedAt: false },
@@ -60,4 +63,8 @@ export class AuditLog {
 }
 
 export const AuditLogSchema = SchemaFactory.createForClass(AuditLog);
-AuditLogSchema.index({ createdAt: -1 });
+/** TTL index; a single-field index also serves the newest-first sort of the audit log list. */
+AuditLogSchema.index(
+  { createdAt: 1 },
+  { expireAfterSeconds: LOG_RETENTION_SECONDS },
+);

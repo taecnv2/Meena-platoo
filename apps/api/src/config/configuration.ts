@@ -17,6 +17,7 @@ export interface AppConfig {
     ownerEmail: string;
     ownerPassword: string;
     demoData: boolean;
+    replaceIngredients: boolean;
   };
 }
 
@@ -39,5 +40,6 @@ export default (): AppConfig => ({
     ownerEmail: process.env.SEED_OWNER_EMAIL ?? 'owner@meenaplatoo.local',
     ownerPassword: process.env.SEED_OWNER_PASSWORD ?? 'ChangeMe123!',
     demoData: process.env.SEED_DEMO_DATA === 'true',
+    replaceIngredients: process.env.SEED_REPLACE_INGREDIENTS === 'true',
   },
 });

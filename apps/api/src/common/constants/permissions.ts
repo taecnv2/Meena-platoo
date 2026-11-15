@@ -26,6 +26,7 @@ export const PERMISSION_CODES = {
   SUPPLIERS_READ: 'suppliers.read',
   SUPPLIERS_CREATE: 'suppliers.create',
   SUPPLIERS_UPDATE: 'suppliers.update',
+  SUPPLIERS_DELETE: 'suppliers.delete',
 
   INGREDIENTS_READ: 'ingredients.read',
   INGREDIENTS_CREATE: 'ingredients.create',
@@ -267,6 +268,13 @@ export const PERMISSION_REGISTRY: PermissionRegistryEntry[] = [
     name: 'แก้ไข Supplier',
     module: 'SUPPLIER',
     description: 'Allows user to update suppliers',
+  },
+  {
+    code: PERMISSION_CODES.SUPPLIERS_DELETE,
+    name: 'ลบ Supplier',
+    module: 'SUPPLIER',
+    description:
+      'Allows user to delete suppliers that no purchase order or stock-in references',
   },
 
   {

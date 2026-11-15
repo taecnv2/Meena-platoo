@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { getModelToken } from '@nestjs/mongoose';
 import * as bcrypt from 'bcrypt';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { AppModule } from '../app.module';
 import { PERMISSION_REGISTRY } from '../common/constants/permissions';
 import { ROLE_DEFINITIONS, ROLE_NAMES } from '../common/constants/roles';
@@ -28,6 +28,8 @@ import {
 import { Unit, UnitDocument } from '../units/schemas/unit.schema';
 import { User, UserDocument } from '../users/schemas/user.schema';
 import { Zone, ZoneDocument, ZoneType } from '../zones/schemas/zone.schema';
+import { CATEGORY_SEEDS, UNIT_SEEDS } from './seed-data/master-data';
+import { MASTER_INGREDIENTS } from './seed-data/master-ingredients';
 
 /** Initial zones (plan.md §20 + the reserved WAREHOUSE). Not hard-coded elsewhere -- users can add more via the Zones UI. */
 const ZONE_SEEDS: Array<{
@@ -58,49 +60,6 @@ const ZONE_SEEDS: Array<{
     description: 'ห้องเย็น',
     allowReceiving: true,
   },
-];
-
-/**
- * Starter categories/units matching the restaurant's stock sheets. Upserted with $setOnInsert
- * only, so names/factors edited later in the UI are never overwritten by a re-seed.
- */
-const CATEGORY_SEEDS: Array<{ code: string; name: string }> = [
-  { code: 'FRESH', name: 'ของสด' },
-  { code: 'SEAFOOD', name: 'อาหารทะเล' },
-  { code: 'CURRY_PASTE', name: 'เครื่องแกง' },
-  { code: 'PROCESSED', name: 'ของแปรรูป' },
-  { code: 'PORTION', name: 'Portion' },
-  { code: 'DRY_GOODS', name: 'เครื่องปรุงและของแห้ง' },
-  { code: 'VEGETABLE', name: 'ผัก' },
-  { code: 'BEVERAGE', name: 'เครื่องดื่ม' },
-  { code: 'ALCOHOL', name: 'เครื่องดื่มแอลกอฮอล์' },
-  { code: 'WINE', name: 'ไวน์' },
-  { code: 'PACKAGING', name: 'แพ็คเกจ' },
-  { code: 'STAFF', name: 'ของพนักงาน' },
-  { code: 'OTHER', name: 'อื่นๆ' },
-];
-
-const UNIT_SEEDS: Array<{
-  code: string;
-  name: string;
-  type: 'WEIGHT' | 'VOLUME' | 'COUNT' | 'OTHER';
-  conversionFactor: number;
-}> = [
-  { code: 'KG', name: 'กิโลกรัม', type: 'WEIGHT', conversionFactor: 1 },
-  { code: 'G', name: 'กรัม', type: 'WEIGHT', conversionFactor: 0.001 },
-  { code: 'L', name: 'ลิตร', type: 'VOLUME', conversionFactor: 1 },
-  { code: 'ML', name: 'มิลลิลิตร', type: 'VOLUME', conversionFactor: 0.001 },
-  { code: 'PCS', name: 'ชิ้น', type: 'COUNT', conversionFactor: 1 },
-  { code: 'FISH', name: 'ตัว', type: 'COUNT', conversionFactor: 1 },
-  { code: 'BAG', name: 'ถุง', type: 'COUNT', conversionFactor: 1 },
-  { code: 'CASE', name: 'ลัง', type: 'COUNT', conversionFactor: 1 },
-  { code: 'PACK', name: 'แพ็ค', type: 'COUNT', conversionFactor: 1 },
-  { code: 'BOX', name: 'กล่อง', type: 'COUNT', conversionFactor: 1 },
-  { code: 'BOTTLE', name: 'ขวด', type: 'COUNT', conversionFactor: 1 },
-  { code: 'CAN', name: 'กระป๋อง', type: 'COUNT', conversionFactor: 1 },
-  { code: 'SHEET', name: 'แผ่น', type: 'COUNT', conversionFactor: 1 },
-  { code: 'BASKET', name: 'เข่ง', type: 'COUNT', conversionFactor: 1 },
-  { code: 'PORTION', name: 'ที่', type: 'COUNT', conversionFactor: 1 },
 ];
 
 interface SeedContext {
@@ -190,36 +149,30 @@ async function seed(): Promise<void> {
     getModelToken(Category.name),
   );
   const unitModel = app.get<Model<UnitDocument>>(getModelToken(Unit.name));
-  for (const category of CATEGORY_SEEDS) {
-    await categoryModel.updateOne(
-      { code: category.code },
-      {
-        $setOnInsert: {
-          name: category.name,
-          description: '',
-          status: 'ACTIVE',
-        },
-      },
-      { upsert: true },
-    );
-  }
-  for (const unit of UNIT_SEEDS) {
-    await unitModel.updateOne(
-      { code: unit.code },
-      {
-        $setOnInsert: {
-          name: unit.name,
-          type: unit.type,
-          conversionFactor: unit.conversionFactor,
-          status: 'ACTIVE',
-        },
-      },
-      { upsert: true },
-    );
-  }
+  const categoryIdByCode = await ensureByCodeOrName(
+    categoryModel,
+    CATEGORY_SEEDS.map((category) => ({
+      code: category.code,
+      name: category.name,
+      description: '',
+    })),
+  );
+  const unitIdByCode = await ensureByCodeOrName(
+    unitModel,
+    UNIT_SEEDS.map((unit) => ({ ...unit })),
+  );
   console.log(
     `  ${CATEGORY_SEEDS.length} categories and ${UNIT_SEEDS.length} units ensured.`,
   );
+
+  console.log('Seeding master ingredients...');
+  const ingredientModel = app.get<Model<IngredientDocument>>(
+    getModelToken(Ingredient.name),
+  );
+  await seedMasterIngredients(ingredientModel, categoryIdByCode, unitIdByCode);
+  if (configService.get('seed.replaceIngredients', { infer: true })) {
+    await deactivateUnlistedIngredients(ingredientModel);
+  }
 
   console.log('Seeding owner user...');
   const ownerRoleId = roleIdByName.get(ROLE_NAMES.OWNER);
@@ -394,6 +347,116 @@ async function seedDemoData(
     { upsert: true },
   );
   console.log('  Demo category/unit/supplier/ingredient ensured (ปลาทู).');
+}
+
+/** Normalized name used to match seed rows against records typed in the UI or imported. */
+function nameKey(value: string): string {
+  return value.replace(/\s+/g, '').toLowerCase();
+}
+
+/**
+ * Inserts each seed row unless a record with the same code -- or the same name, e.g. "ห่อ"
+ * created on the fly by the importer under another code -- already exists. Existing records are
+ * never modified. Returns seed code -> id of whichever record now represents it.
+ */
+async function ensureByCodeOrName<T extends { code: string; name: string }>(
+  model: Model<CategoryDocument> | Model<UnitDocument>,
+  rows: T[],
+): Promise<Map<string, Types.ObjectId>> {
+  const existing = await (model as Model<CategoryDocument>)
+    .find({}, { code: 1, name: 1 })
+    .lean();
+  const idByCode = new Map(existing.map((doc) => [doc.code, doc._id]));
+  const idByName = new Map(existing.map((doc) => [nameKey(doc.name), doc._id]));
+  const result = new Map<string, Types.ObjectId>();
+  for (const row of rows) {
+    let id = idByCode.get(row.code) ?? idByName.get(nameKey(row.name));
+    if (!id) {
+      const created = await (model as Model<CategoryDocument>).create({
+        ...row,
+        status: 'ACTIVE',
+      });
+      id = created._id;
+    }
+    result.set(row.code, id);
+  }
+  return result;
+}
+
+/** Adds the master list; an ingredient whose code or name already exists is left exactly as it is. */
+async function seedMasterIngredients(
+  ingredientModel: Model<IngredientDocument>,
+  categoryIdByCode: Map<string, Types.ObjectId>,
+  unitIdByCode: Map<string, Types.ObjectId>,
+): Promise<void> {
+  const existing = await ingredientModel.find({}, { code: 1, name: 1 }).lean();
+  const codes = new Set(existing.map((doc) => doc.code));
+  const names = new Set(existing.map((doc) => nameKey(doc.name)));
+  const requireId = (map: Map<string, Types.ObjectId>, code: string) => {
+    const id = map.get(code);
+    if (!id) {
+      throw new Error(`Master data code "${code}" was not seeded`);
+    }
+    return id;
+  };
+
+  let created = 0;
+  for (const item of MASTER_INGREDIENTS) {
+    if (codes.has(item.code) || names.has(nameKey(item.name))) {
+      continue;
+    }
+    await ingredientModel.create({
+      code: item.code,
+      name: item.name,
+      categoryId: requireId(categoryIdByCode, item.category),
+      baseUnitId: requireId(unitIdByCode, item.unit),
+      unitConversions: (item.packs ?? []).map((pack) => ({
+        unitId: requireId(unitIdByCode, pack.unit),
+        factor: pack.factor,
+      })),
+      tags: item.tags,
+      consignmentOwner: item.consignmentOwner ?? null,
+      defaultCost: item.defaultCost ?? 0,
+      description: item.description ?? '',
+      status: 'ACTIVE',
+    });
+    created += 1;
+  }
+  console.log(
+    `  ${created} new, ${MASTER_INGREDIENTS.length - created} already present (${MASTER_INGREDIENTS.length} in master list).`,
+  );
+}
+
+/**
+ * SEED_REPLACE_INGREDIENTS=true: hides every ingredient that is not in the master list by setting
+ * it INACTIVE. Nothing is deleted, so stock history and old reports stay intact and an item can be
+ * re-activated from the Ingredients page.
+ */
+async function deactivateUnlistedIngredients(
+  ingredientModel: Model<IngredientDocument>,
+): Promise<void> {
+  const masterCodes = new Set(MASTER_INGREDIENTS.map((item) => item.code));
+  const masterNames = new Set(
+    MASTER_INGREDIENTS.map((item) => nameKey(item.name)),
+  );
+  const active = await ingredientModel
+    .find({ status: 'ACTIVE' }, { code: 1, name: 1 })
+    .lean();
+  const unlistedIds = active
+    .filter(
+      (doc) =>
+        !masterCodes.has(doc.code) && !masterNames.has(nameKey(doc.name)),
+    )
+    .map((doc) => doc._id);
+  if (unlistedIds.length > 0) {
+    await ingredientModel.updateMany(
+      { _id: { $in: unlistedIds } },
+      { $set: { status: 'INACTIVE' } },
+    );
+  }
+  console.log(
+    `  SEED_REPLACE_INGREDIENTS: ${unlistedIds.length} ingredient(s) not in the master list set to INACTIVE.`,
+  );
 }
 
 function requireZoneId(
